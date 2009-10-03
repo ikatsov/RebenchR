@@ -49,7 +49,7 @@ struct workload_config_t {
     operation_t operation;
     rnd_dist_t dist;
     int sigma;
-    int no_confirmation;    
+    int silent;    
 };
 
 // Operations

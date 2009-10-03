@@ -124,9 +124,15 @@ int workloads_cmp(workload_simulation_t *x, workload_simulation_t *y) {
 
 void print_stats(ticks_t start_time, ticks_t end_time, int ops, workload_config_t *config) {
     float total_secs = ticks_to_secs(end_time - start_time);
-    printf("Operations/sec: %d (%.2f MB/sec)\n",
-           (int)(ops / total_secs),
-           ((double)ops * config->block_size / 1024 / 1024) / total_secs);
+    if(config->silent) {
+        printf("%d %.2f\n",
+               (int)(ops / total_secs),
+               ((double)ops * config->block_size / 1024 / 1024) / total_secs);
+    } else {
+        printf("Operations/sec: %d (%.2f MB/sec)\n",
+               (int)(ops / total_secs),
+               ((double)ops * config->block_size / 1024 / 1024) / total_secs);
+    }
 }
 
 int main(int argc, char *argv[])
@@ -165,8 +171,21 @@ int main(int argc, char *argv[])
     sort(workloads.begin(), workloads.end(), workloads_cmp);
 
     // Start the simulations
+    int workload = 1;
     for(wsp_vector::iterator it = workloads.begin(); it != workloads.end(); ++it) {
         workload_simulation_t *ws = *it;
+
+        if(!ws->config.silent) {
+            if(workloads.size() > 1) {
+                printf("Starting workload %d...\n", workload);
+                if(workload == workloads.size())
+                    printf("\n");
+            }
+            else
+                printf("Benchmarking...\n\n");
+        }
+        workload++;
+
         ws->is_done = 0;
         ws->ops = 0;
         ws->mmap = NULL;
@@ -195,8 +214,6 @@ int main(int argc, char *argv[])
             ws->threads.push_back(thread);
         }
     }
-
-    printf("Benchmarking...\n\n");
 
     // Stop the simulations
     int last_duration = 0;

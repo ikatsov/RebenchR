@@ -9,7 +9,7 @@ int HARDWARE_BLOCK_SIZE = 512;
 
 void init_workload_config(workload_config_t *config) {
     bzero(config, sizeof(*config));
-    config->no_confirmation = 0;
+    config->silent = 0;
     config->threads = 1;
     config->block_size = HARDWARE_BLOCK_SIZE;
     config->duration = 10;
@@ -78,7 +78,8 @@ void usage(const char *name) {
            "\t\tbe the mean accessed location (5 by default).\n");
     printf("\t-l, --local-fd\n\t\tUse a thread local file descriptor (by default file descriptors\n"\
            "\t\tare shared across threads).\n");
-    printf("\t-n, --force\n\t\tDon't ask for write confirmation.\n");
+    printf("\t-n, --silent\n\t\tNon-interactive mode. Won't ask for write confirmation, and will\n"\
+           "\t\tprint machine readable output.\n");
     exit(0);
 }
 
@@ -104,7 +105,7 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
                 {"do-atime", no_argument, &config->do_atime, 1},
                 {"append", no_argument, &config->append_only, 1},
                 {"local-fd", no_argument, &config->local_fd, 1},
-                {"force", no_argument, &config->no_confirmation, 1},
+                {"silent", no_argument, &config->silent, 1},
                 {0, 0, 0, 0}
             };
 
@@ -144,7 +145,7 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
             break;
      
         case 'n':
-            config->no_confirmation = 1;
+            config->silent = 1;
             break;
      
         case 'f':
@@ -263,7 +264,7 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
         config->io_type == iot_mmap)
         check("Memory mapping isn't implemented where remapping might be required", 1);
 
-    if(config->operation == op_write && !config->no_confirmation) {
+    if(config->operation == op_write && !config->silent) {
         while(true) {
             printf("Are you sure you want to write to %s [y/N]? ", config->device);
             int response = getc(stdin);
@@ -285,6 +286,9 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
 }
 
 void print_status(size_t length, workload_config_t *config) {
+    if(config->silent)
+        return;
+    
     size_t hl = length / 1024 / 1024 / 1024;
     if(hl != 0)
         printf("Benchmarking results for [%s] (%ldGB)\n", config->device, hl);
