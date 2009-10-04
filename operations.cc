@@ -23,7 +23,7 @@ off64_t prepare_offset(off64_t length, unsigned int ops, rnd_gen_t rnd_gen,
     // Setup the offset
     if(config->workload == wl_rnd) {
         offset = (get_random(rnd_gen, config->dist, length, config->sigma) /
-                  config->block_size * config->block_size);
+                  config->stride * config->stride);
     } else if(config->workload == wl_seq) {
         if(config->direction == opd_forward)
             offset = ops * config->stride;
