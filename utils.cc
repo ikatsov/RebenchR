@@ -4,6 +4,8 @@
 #include <time.h>
 #include <errno.h>
 #include <gsl/gsl_randist.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include "opts.hpp"
 #include "utils.hpp"
 
@@ -72,3 +74,19 @@ off64_t get_random(rnd_gen_t rnd_gen, rnd_dist_t dist, off64_t length, int sigma
         check("Invalid distribution", 1);
     }
 }
+
+off64_t get_device_length(const char* device) {
+    int fd;
+    off64_t length;
+    
+    fd = open64(device, O_RDONLY);
+    check("Error opening device", fd == -1);
+
+    length = lseek64(fd, 0, SEEK_END);
+    check("Error computing device size", length == -1);
+
+    close(fd);
+
+    return length;
+}
+

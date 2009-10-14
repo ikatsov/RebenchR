@@ -15,5 +15,7 @@ rnd_gen_t init_rnd_gen();
 void free_rnd_gen(rnd_gen_t rnd_gen);
 off64_t get_random(rnd_gen_t rnd_gen, rnd_dist_t dist, off64_t length, int sigma);
 
+off64_t get_device_length(const char* device);
+
 #endif // __UTILS_HPP__
 

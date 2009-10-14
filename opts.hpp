@@ -29,13 +29,18 @@ enum rnd_dist_t {
     rdt_normal,
     rdt_power
 };
+enum duration_unit_t {
+    dut_time,
+    dut_space
+};
 
 // Workload config
 #define DEVICE_NAME_LENGTH 512
 struct workload_config_t {
     int threads;
     int block_size;
-    int duration;
+    long duration;
+    duration_unit_t duration_unit;
     int stride;
     char device[DEVICE_NAME_LENGTH];
     int direct_io;

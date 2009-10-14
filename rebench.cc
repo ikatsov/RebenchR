@@ -42,11 +42,10 @@ void setup_io(int *fd, off64_t *length, void **map, workload_config_t *config) {
     if(config->append_only)
         flags |= O_APPEND;
 
+    *length = get_device_length(config->device);
+    
     *fd = open64(config->device, flags);
     check("Error opening device", *fd == -1);
-
-    *length = lseek64(*fd, 0, SEEK_END);
-    check("Error computing device size", *length == -1);
 
     if(config->io_type == iot_mmap) {
         int prot = 0;
@@ -94,7 +93,6 @@ typedef vector<workload_simulation_t*> wsp_vector;
 void* run_simulation(void *arg) {
     simulation_info_t *info = (simulation_info_t*)arg;
     rnd_gen_t rnd_gen;
-    unsigned int ops = 0;
     char *buf;
 
     int res = posix_memalign((void**)&buf, HARDWARE_BLOCK_SIZE, info->config->block_size);
@@ -104,22 +102,16 @@ void* run_simulation(void *arg) {
     check("Error initializing random numbers", rnd_gen == NULL);
 
     while(!(*info->is_done)) {
+        int ops = __sync_fetch_and_add(&(info->ops), 1);
         if(!perform_op(info->fd, info->mmap, buf, info->length, ops, rnd_gen, info->config))
             goto done;
-
-        ops++;
     }
 
 done:
     free_rnd_gen(rnd_gen);
     free(buf);
-    info->ops = ops;
 
     return 0;
-}
-
-int workloads_cmp(workload_simulation_t *x, workload_simulation_t *y) {
-    return x->config.duration < y->config.duration;
 }
 
 void print_stats(ticks_t start_time, ticks_t end_time, int ops, workload_config_t *config) {
@@ -129,10 +121,19 @@ void print_stats(ticks_t start_time, ticks_t end_time, int ops, workload_config_
                (int)(ops / total_secs),
                ((double)ops * config->block_size / 1024 / 1024) / total_secs);
     } else {
-        printf("Operations/sec: %d (%.2f MB/sec)\n",
+        printf("Operations/sec: %d (%.2f MB/sec) - %.2f secs\n",
                (int)(ops / total_secs),
-               ((double)ops * config->block_size / 1024 / 1024) / total_secs);
+               ((double)ops * config->block_size / 1024 / 1024) / total_secs,
+               ticks_to_secs(end_time - start_time));
     }
+}
+
+int compute_total_ops(workload_simulation_t *ws) {
+    int ops = 0;
+    for(int i = 0; i < ws->config.threads; i++) {
+        ops += __sync_fetch_and_add(&(ws->sim_infos[i]->ops), 0);
+    }
+    return ops;
 }
 
 int main(int argc, char *argv[])
@@ -166,9 +167,6 @@ int main(int argc, char *argv[])
 
     if(workloads.empty())
         usage(argv[0]);
-
-    // Sort the workloads based on duration
-    sort(workloads.begin(), workloads.end(), workloads_cmp);
 
     // Start the simulations
     int workload = 1;
@@ -216,22 +214,53 @@ int main(int argc, char *argv[])
     }
 
     // Stop the simulations
-    int last_duration = 0;
+    bool all_done = false;
+    int total_slept = 0;
+    while(!all_done) {
+        all_done = true;
+        for(wsp_vector::iterator it = workloads.begin(); it != workloads.end(); ++it) {
+            workload_simulation_t *ws = *it;
+            // See if the workload is done
+            if(!ws->is_done) {
+                if(ws->config.duration_unit == dut_space) {
+                    int total_bytes = compute_total_ops(ws) * ws->config.block_size;
+                    if(total_bytes >= ws->config.duration) {
+                        ws->is_done = 1;
+                    } else {
+                        all_done = false;
+                    }
+                } else {
+                    if(total_slept / 200.0f >= ws->config.duration) {
+                        ws->is_done = 1;
+                    } else {
+                        all_done = false;
+                    }
+                }
+                // If the workload is done, wait for all the threads and grab the time
+                if(ws->is_done) {
+                    for(i = 0; i < ws->config.threads; i++) {
+                        check("Error joining thread",
+                              pthread_join(ws->threads[i], NULL) != 0);
+                    }
+                    ws->end_time = get_ticks();
+                }
+            }
+        }
+        
+        if(!all_done) {
+            usleep(5000);
+            total_slept++;
+        }
+    }
+    
+    // Compute the stats
     for(wsp_vector::iterator it = workloads.begin(); it != workloads.end(); ++it) {
         workload_simulation_t *ws = *it;
-        sleep(ws->config.duration - last_duration);
-        last_duration = ws->config.duration;
-        
-        ws->is_done = 1;
-        
         for(i = 0; i < ws->config.threads; i++) {
-            check("Error joining thread",
-                  pthread_join(ws->threads[i], NULL) != 0);
             if(ws->config.local_fd)
                 cleanup_io(ws->sim_infos[i]->fd, ws->sim_infos[i]->mmap, ws->sim_infos[i]->length);
-            ws->ops += ws->sim_infos[i]->ops;
         }
-        ws->end_time = get_ticks();
+        ws->ops = compute_total_ops(ws);
         
         if(!ws->config.local_fd)
             cleanup_io(ws->fd, ws->mmap, ws->length);

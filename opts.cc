@@ -4,6 +4,7 @@
 #include <getopt.h>
 #include <string.h>
 #include "opts.hpp"
+#include "utils.hpp"
 
 int HARDWARE_BLOCK_SIZE = 512;
 
@@ -13,6 +14,7 @@ void init_workload_config(workload_config_t *config) {
     config->threads = 1;
     config->block_size = HARDWARE_BLOCK_SIZE;
     config->duration = 10;
+    config->duration_unit = dut_time;
     config->stride = HARDWARE_BLOCK_SIZE;
     config->device[0] = NULL;
     config->direct_io = 1;
@@ -41,6 +43,11 @@ void usage(const char *name) {
     
     printf("\nOptions:\n");
     printf("\t-d, --duration\n\t\tDuration of the benchmark in seconds.\n");
+    printf("\t\tDuration can be specified in KB, MB, and GB (add 'k', 'm', or 'g'\n");
+    printf("\t\tto the end of the number. The benchmark will stop when that much\n");
+    printf("\t\tdata has been processed. If the number is followed by '%%',\n");
+    printf("\t\tthe size will be that percentage of the device.\n");
+    
     printf("\t-c, --threads\n\t\tNumbers of threads used to run the benchmark.\n");
     printf("\t-b, --block_size\n\t\tSize of blocks in bytes to use for IO operations.\n");
     printf("\t-s, --stride\n\t\tSize of stride in bytes (only applies to sequential workloads).\n");
@@ -83,7 +90,37 @@ void usage(const char *name) {
     exit(0);
 }
 
+void parse_duration(char *duration, workload_config_t *config) {
+    if(!duration[0])
+        return;
+
+    int len = strlen(duration);
+    if(duration[len - 1] == '%') {
+        config->duration_unit = dut_space;
+        duration[len - 1] = 0;
+        off64_t dev_len = get_device_length(config->device);
+        config->duration = long(dev_len / 100.0f * atoi(duration));
+    } else if(duration[len - 1] == 'k') {
+        config->duration_unit = dut_space;
+        duration[len - 1] = 0;
+        config->duration = atoi(duration) * 1024L;
+    } else if(duration[len - 1] == 'm') {
+        config->duration_unit = dut_space;
+        duration[len - 1] = 0;
+        config->duration = atoi(duration) * 1024L * 1024L;
+    } else if(duration[len - 1] == 'g') {
+        config->duration_unit = dut_space;
+        duration[len - 1] = 0;
+        config->duration = atoi(duration) * 1024L * 1024L * 1024L;
+    } else {
+        config->duration_unit = dut_time;
+        config->duration = atoi(duration);
+    }
+}
+
 void parse_options(int argc, char *argv[], workload_config_t *config) {
+    char duration_buf[256];
+    duration_buf[0] = 0;
     init_workload_config(config);
     optind = 1; // reinit getopt
     while(1)
@@ -125,7 +162,7 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
             break;
             
         case 'd':
-            config->duration = atoi(optarg);
+            strcpy(duration_buf, optarg);
             break;
      
         case 'c':
@@ -283,6 +320,8 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
             }
         }
     }
+
+    parse_duration(duration_buf, config);
 }
 
 void print_status(size_t length, workload_config_t *config) {
@@ -305,8 +344,26 @@ void print_status(size_t length, workload_config_t *config) {
         }
     }
         
-    printf("[");
-    printf("duration: %ds, ", config->duration);
+    printf("[duration: ");
+    if(config->duration_unit == dut_time) {
+        printf("%lds, ", config->duration);
+    } else {
+        size_t hl = config->duration / 1024 / 1024 / 1024;
+        if(hl != 0)
+            printf("%ldGB, ", hl);
+        else {
+            size_t hl = config->duration / 1024 / 1024;
+            if(hl != 0)
+                printf("%ldMB, ", hl);
+            else {
+                size_t hl = config->duration / 1024;
+                if(hl != 0 )
+                    printf("%ldKB, ", hl);
+                else
+                    printf("%ldb, ", config->duration);
+            }
+        }
+    }
 
     printf("threads: %d, ", config->threads);
 
