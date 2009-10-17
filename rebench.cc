@@ -69,7 +69,7 @@ void cleanup_io(int fd, void *map, off64_t length) {
 // Describes each thread in a workload
 struct simulation_info_t {
     int *is_done;
-    int ops;
+    long ops;
     int fd;
     off64_t length;
     workload_config_t *config;
@@ -128,8 +128,8 @@ void print_stats(ticks_t start_time, ticks_t end_time, int ops, workload_config_
     }
 }
 
-int compute_total_ops(workload_simulation_t *ws) {
-    int ops = 0;
+long compute_total_ops(workload_simulation_t *ws) {
+    long ops = 0;
     for(int i = 0; i < ws->config.threads; i++) {
         ops += __sync_fetch_and_add(&(ws->sim_infos[i]->ops), 0);
     }
@@ -223,7 +223,7 @@ int main(int argc, char *argv[])
             // See if the workload is done
             if(!ws->is_done) {
                 if(ws->config.duration_unit == dut_space) {
-                    int total_bytes = compute_total_ops(ws) * ws->config.block_size;
+                    long total_bytes = compute_total_ops(ws) * ws->config.block_size;
                     if(total_bytes >= ws->config.duration) {
                         ws->is_done = 1;
                     } else {
