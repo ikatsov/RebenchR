@@ -99,7 +99,7 @@ void parse_duration(char *duration, workload_config_t *config) {
         config->duration_unit = dut_space;
         duration[len - 1] = 0;
         off64_t dev_len = get_device_length(config->device);
-        config->duration = long(dev_len / 100.0f * atoi(duration));
+        config->duration = long(dev_len / 100.0f * atol(duration));
     } else if(duration[len - 1] == 'k') {
         config->duration_unit = dut_space;
         duration[len - 1] = 0;
