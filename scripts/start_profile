@@ -1,0 +1,8 @@
+#!/bin/bash
+opcontrol --init
+sudo opcontrol --setup --vmlinux=/home/coffeemug/vmlinux
+opcontrol --setup --separate=all
+opcontrol --callgraph=6
+opcontrol --start-daemon
+opcontrol --start
+

@@ -1,0 +1,10 @@
+#!/bin/bash
+opcontrol --dump
+
+if [ "$1" = "--full" ]
+then
+    opreport --demangle=smart --symbols --merge tgid --callgraph
+else
+    echo "Note, you can pass --full argument to get a full report."
+    opreport --demangle=smart --symbols --merge tgid --callgraph | grep rebench
+fi
