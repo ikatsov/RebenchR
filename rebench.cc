@@ -95,7 +95,9 @@ void* run_simulation(void *arg) {
     rnd_gen_t rnd_gen;
     char *buf;
 
-    int res = posix_memalign((void**)&buf, HARDWARE_BLOCK_SIZE, info->config->block_size);
+    int res = posix_memalign((void**)&buf,
+                             max(getpagesize(), info->config->block_size),
+                             info->config->block_size);
     check("Error allocating memory", res != 0);
 
     rnd_gen = init_rnd_gen();
