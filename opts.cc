@@ -103,18 +103,18 @@ void parse_duration(char *duration, workload_config_t *config) {
     } else if(duration[len - 1] == 'k') {
         config->duration_unit = dut_space;
         duration[len - 1] = 0;
-        config->duration = atoi(duration) * 1024L;
+        config->duration = atol(duration) * 1024L;
     } else if(duration[len - 1] == 'm') {
         config->duration_unit = dut_space;
         duration[len - 1] = 0;
-        config->duration = atoi(duration) * 1024L * 1024L;
+        config->duration = atol(duration) * 1024L * 1024L;
     } else if(duration[len - 1] == 'g') {
         config->duration_unit = dut_space;
         duration[len - 1] = 0;
-        config->duration = atoi(duration) * 1024L * 1024L * 1024L;
+        config->duration = atol(duration) * 1024L * 1024L * 1024L;
     } else {
         config->duration_unit = dut_time;
-        config->duration = atoi(duration);
+        config->duration = atol(duration);
     }
 }
 
