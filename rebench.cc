@@ -103,17 +103,21 @@ void* run_simulation(void *arg) {
     rnd_gen = init_rnd_gen();
     check("Error initializing random numbers", rnd_gen == NULL);
 
+    char sum = 0;
     while(!(*info->is_done)) {
         int ops = __sync_fetch_and_add(&(info->ops), 1);
         if(!perform_op(info->fd, info->mmap, buf, info->length, ops, rnd_gen, info->config))
             goto done;
+        // Read from the buffer to make sure there is no optimization
+        // shenanigans
+	sum += buf[0];
     }
 
 done:
     free_rnd_gen(rnd_gen);
     free(buf);
 
-    return 0;
+    return (void*)sum;
 }
 
 void print_stats(ticks_t start_time, ticks_t end_time, int ops, workload_config_t *config) {
