@@ -85,7 +85,7 @@ struct workload_simulation_t {
     int fd;
     off64_t length;
     ticks_t start_time, end_time;
-    int ops;
+    long ops;
     void *mmap;
 };
 typedef vector<workload_simulation_t*> wsp_vector;
@@ -105,7 +105,7 @@ void* run_simulation(void *arg) {
 
     char sum = 0;
     while(!(*info->is_done)) {
-        int ops = __sync_fetch_and_add(&(info->ops), 1);
+        long ops = __sync_fetch_and_add(&(info->ops), 1);
         if(!perform_op(info->fd, info->mmap, buf, info->length, ops, rnd_gen, info->config))
             goto done;
         // Read from the buffer to make sure there is no optimization
@@ -120,17 +120,17 @@ done:
     return (void*)sum;
 }
 
-void print_stats(ticks_t start_time, ticks_t end_time, int ops, workload_config_t *config) {
+void print_stats(ticks_t start_time, ticks_t end_time, long ops, workload_config_t *config) {
     float total_secs = ticks_to_secs(end_time - start_time);
     if(config->silent) {
         printf("%d %.2f\n",
-               (int)(ops / total_secs),
+               (int)((float)ops / total_secs),
                ((double)ops * config->block_size / 1024 / 1024) / total_secs);
     } else {
-        printf("Operations/sec: %d (%.2f MB/sec) - %.2f secs\n",
-               (int)(ops / total_secs),
+        printf("Operations/sec: %d (%.2f MB/sec) - %ld ops in %.2f secs\n",
+               (int)((float)ops / total_secs),
                ((double)ops * config->block_size / 1024 / 1024) / total_secs,
-               ticks_to_secs(end_time - start_time));
+               ops, ticks_to_secs(end_time - start_time));
     }
 }
 

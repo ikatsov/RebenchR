@@ -328,19 +328,19 @@ void print_status(size_t length, workload_config_t *config) {
     if(config->silent)
         return;
     
-    size_t hl = length / 1024 / 1024 / 1024;
+    long hl = length / 1024 / 1024 / 1024;
     if(hl != 0)
         printf("Benchmarking results for [%s] (%ldGB)\n", config->device, hl);
     else {
-        size_t hl = length / 1024 / 1024;
+        long hl = length / 1024 / 1024;
         if(hl != 0)
             printf("Benchmarking results for [%s] (%ldMB)\n", config->device, hl);
         else {
-            size_t hl = length / 1024;
+            long hl = length / 1024;
             if(hl != 0 )
                 printf("Benchmarking results for [%s] (%ldKB)\n", config->device, hl);
             else
-                printf("Benchmarking results for [%s] (%ldb)\n", config->device, length);
+                printf("Benchmarking results for [%s] (%ldb)\n", config->device, (long)length);
         }
     }
         
@@ -348,15 +348,15 @@ void print_status(size_t length, workload_config_t *config) {
     if(config->duration_unit == dut_time) {
         printf("%lds, ", config->duration);
     } else {
-        size_t hl = config->duration / 1024 / 1024 / 1024;
+        long hl = config->duration / 1024 / 1024 / 1024;
         if(hl != 0)
             printf("%ldGB, ", hl);
         else {
-            size_t hl = config->duration / 1024 / 1024;
+            long hl = config->duration / 1024 / 1024;
             if(hl != 0)
                 printf("%ldMB, ", hl);
             else {
-                size_t hl = config->duration / 1024;
+                long hl = config->duration / 1024;
                 if(hl != 0 )
                     printf("%ldKB, ", hl);
                 else
