@@ -85,7 +85,7 @@ struct workload_simulation_t {
     int fd;
     off64_t length;
     ticks_t start_time, end_time;
-    long ops;
+    long long ops;
     void *mmap;
 };
 typedef vector<workload_simulation_t*> wsp_vector;
@@ -105,7 +105,7 @@ void* run_simulation(void *arg) {
 
     char sum = 0;
     while(!(*info->is_done)) {
-        long ops = __sync_fetch_and_add(&(info->ops), 1);
+        long long ops = __sync_fetch_and_add(&(info->ops), 1);
         if(!perform_op(info->fd, info->mmap, buf, info->length, ops, rnd_gen, info->config))
             goto done;
         // Read from the buffer to make sure there is no optimization
@@ -120,22 +120,22 @@ done:
     return (void*)sum;
 }
 
-void print_stats(ticks_t start_time, ticks_t end_time, long ops, workload_config_t *config) {
+void print_stats(ticks_t start_time, ticks_t end_time, long long ops, workload_config_t *config) {
     float total_secs = ticks_to_secs(end_time - start_time);
     if(config->silent) {
         printf("%d %.2f\n",
                (int)((float)ops / total_secs),
                ((double)ops * config->block_size / 1024 / 1024) / total_secs);
     } else {
-        printf("Operations/sec: %d (%.2f MB/sec) - %ld ops in %.2f secs\n",
+        printf("Operations/sec: %d (%.2f MB/sec) - %lld ops in %.2f secs\n",
                (int)((float)ops / total_secs),
                ((double)ops * config->block_size / 1024 / 1024) / total_secs,
                ops, ticks_to_secs(end_time - start_time));
     }
 }
 
-long compute_total_ops(workload_simulation_t *ws) {
-    long ops = 0;
+long long compute_total_ops(workload_simulation_t *ws) {
+    long long ops = 0;
     for(int i = 0; i < ws->config.threads; i++) {
         ops += __sync_fetch_and_add(&(ws->sim_infos[i]->ops), 0);
     }
@@ -229,7 +229,7 @@ int main(int argc, char *argv[])
             // See if the workload is done
             if(!ws->is_done) {
                 if(ws->config.duration_unit == dut_space) {
-                    long total_bytes = compute_total_ops(ws) * ws->config.block_size;
+                    long long total_bytes = compute_total_ops(ws) * ws->config.block_size;
                     if(total_bytes >= ws->config.duration) {
                         ws->is_done = 1;
                     } else {

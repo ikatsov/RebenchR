@@ -39,7 +39,7 @@ enum duration_unit_t {
 struct workload_config_t {
     int threads;
     int block_size;
-    long duration;
+    long long duration;
     duration_unit_t duration_unit;
     int stride;
     char device[DEVICE_NAME_LENGTH];

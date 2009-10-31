@@ -16,7 +16,7 @@ int is_done(off64_t offset, off64_t length, workload_config_t *config) {
         && !(config->workload == wl_seq && config->operation == op_write && config->direction == opd_forward);
 }
 
-off64_t prepare_offset(off64_t length, long ops, rnd_gen_t rnd_gen,
+off64_t prepare_offset(off64_t length, long long ops, rnd_gen_t rnd_gen,
                        workload_config_t *config) {
     off64_t offset = -1;
             
@@ -129,7 +129,7 @@ void perform_write_op(int fd, void *mmap, off64_t offset, char *buf,
     check("Error writing to device", res == -1 || res != config->block_size);
 }
 
-int perform_op(int fd, void *mmap, char *buf, off64_t length, long ops, rnd_gen_t rnd_gen,
+int perform_op(int fd, void *mmap, char *buf, off64_t length, long long ops, rnd_gen_t rnd_gen,
                workload_config_t *config) {
     off64_t res;
     off64_t offset = prepare_offset(length, ops, rnd_gen, config);

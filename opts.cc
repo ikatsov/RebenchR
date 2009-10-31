@@ -99,7 +99,7 @@ void parse_duration(char *duration, workload_config_t *config) {
         config->duration_unit = dut_space;
         duration[len - 1] = 0;
         off64_t dev_len = get_device_length(config->device);
-        config->duration = long(dev_len / 100.0f * atol(duration));
+        config->duration = (long long)(dev_len / 100.0f * atol(duration));
     } else if(duration[len - 1] == 'k') {
         config->duration_unit = dut_space;
         duration[len - 1] = 0;
@@ -328,39 +328,39 @@ void print_status(size_t length, workload_config_t *config) {
     if(config->silent)
         return;
     
-    long hl = length / 1024 / 1024 / 1024;
+    long long hl = length / 1024 / 1024 / 1024;
     if(hl != 0)
-        printf("Benchmarking results for [%s] (%ldGB)\n", config->device, hl);
+        printf("Benchmarking results for [%s] (%lldGB)\n", config->device, hl);
     else {
-        long hl = length / 1024 / 1024;
+        long long hl = length / 1024 / 1024;
         if(hl != 0)
-            printf("Benchmarking results for [%s] (%ldMB)\n", config->device, hl);
+            printf("Benchmarking results for [%s] (%lldMB)\n", config->device, hl);
         else {
-            long hl = length / 1024;
+            long long hl = length / 1024;
             if(hl != 0 )
-                printf("Benchmarking results for [%s] (%ldKB)\n", config->device, hl);
+                printf("Benchmarking results for [%s] (%lldKB)\n", config->device, hl);
             else
-                printf("Benchmarking results for [%s] (%ldb)\n", config->device, (long)length);
+                printf("Benchmarking results for [%s] (%lldb)\n", config->device, (long long)length);
         }
     }
         
     printf("[duration: ");
     if(config->duration_unit == dut_time) {
-        printf("%lds, ", config->duration);
+        printf("%llds, ", config->duration);
     } else {
-        long hl = config->duration / 1024 / 1024 / 1024;
+        long long hl = config->duration / 1024 / 1024 / 1024;
         if(hl != 0)
-            printf("%ldGB, ", hl);
+            printf("%lldGB, ", hl);
         else {
-            long hl = config->duration / 1024 / 1024;
+            long long hl = config->duration / 1024 / 1024;
             if(hl != 0)
-                printf("%ldMB, ", hl);
+                printf("%lldMB, ", hl);
             else {
-                long hl = config->duration / 1024;
+                long long hl = config->duration / 1024;
                 if(hl != 0 )
-                    printf("%ldKB, ", hl);
+                    printf("%lldKB, ", hl);
                 else
-                    printf("%ldb, ", config->duration);
+                    printf("%lldb, ", config->duration);
             }
         }
     }
