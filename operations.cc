@@ -136,6 +136,16 @@ int perform_op(int fd, void *mmap, char *buf, off64_t length, long long ops, rnd
     if(is_done(offset, length, config))
         return 0;
 
+    if(config->duration_unit == dut_interactive) {
+        char in;
+        // Ask for confirmation before the operation
+        printf("%lld: Press enter to perform operation, or 'q' to quit: ", ops);
+        in = getchar();
+        if(in == EOF || in == 'q') {
+            return 0;
+        }
+    }
+    
     // Perform the operation
     if(config->operation == op_read)
         perform_read_op(fd, mmap, offset, buf, config);

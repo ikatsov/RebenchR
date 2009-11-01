@@ -31,7 +31,8 @@ enum rnd_dist_t {
 };
 enum duration_unit_t {
     dut_time,
-    dut_space
+    dut_space,
+    dut_interactive
 };
 
 // Workload config

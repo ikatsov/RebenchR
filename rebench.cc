@@ -106,8 +106,12 @@ void* run_simulation(void *arg) {
     char sum = 0;
     while(!(*info->is_done)) {
         long long ops = __sync_fetch_and_add(&(info->ops), 1);
-        if(!perform_op(info->fd, info->mmap, buf, info->length, ops, rnd_gen, info->config))
+        if(!perform_op(info->fd, info->mmap, buf, info->length, ops, rnd_gen, info->config)) {
+            if(info->config->duration_unit == dut_interactive) {
+                *info->is_done = 1;
+            }
             goto done;
+        }
         // Read from the buffer to make sure there is no optimization
         // shenanigans
 	sum += buf[0];
@@ -121,6 +125,8 @@ done:
 }
 
 void print_stats(ticks_t start_time, ticks_t end_time, long long ops, workload_config_t *config) {
+    if(config->duration_unit == dut_interactive)
+        return;
     float total_secs = ticks_to_secs(end_time - start_time);
     if(config->silent) {
         printf("%d %.2f\n",
@@ -162,6 +168,9 @@ int main(int argc, char *argv[])
                 args.insert(args.begin(), argv[0]);
                 workload_simulation_t *ws = new workload_simulation_t();
                 parse_options(args.size(), &args[0], &ws->config);
+                if(ws->config.duration_unit == dut_interactive) {
+                    check("Cannot run in interactive mode with stdin workloads", 1);
+                }
                 workloads.push_back(ws);
             }
         }
@@ -235,11 +244,16 @@ int main(int argc, char *argv[])
                     } else {
                         all_done = false;
                     }
-                } else {
+                } else if(ws->config.duration_unit == dut_time) {
                     if(total_slept / 200.0f >= ws->config.duration) {
                         ws->is_done = 1;
                     } else {
                         all_done = false;
+                    }
+                } else {
+                    // The simulation thread will handle exiting
+                    while(!ws->is_done) {
+                        usleep(5000);
                     }
                 }
                 // If the workload is done, wait for all the threads and grab the time

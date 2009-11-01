@@ -46,7 +46,9 @@ void usage(const char *name) {
     printf("\t\tDuration can be specified in KB, MB, and GB (add 'k', 'm', or 'g'\n");
     printf("\t\tto the end of the number. The benchmark will stop when that much\n");
     printf("\t\tdata has been processed. If the number is followed by '%%',\n");
-    printf("\t\tthe size will be that percentage of the device.\n");
+    printf("\t\tthe size will be that percentage of the device. If duration is\n");
+    printf("\t\tset to 'i', rebench will run commands interactively (useful for\n");
+    printf("\t\tdebugging with btrace, and only available in single-threaded mode).\n");
     
     printf("\t-c, --threads\n\t\tNumbers of threads used to run the benchmark.\n");
     printf("\t-b, --block_size\n\t\tSize of blocks in bytes to use for IO operations.\n");
@@ -87,6 +89,11 @@ void usage(const char *name) {
            "\t\tare shared across threads).\n");
     printf("\t-n, --silent\n\t\tNon-interactive mode. Won't ask for write confirmation, and will\n"\
            "\t\tprint machine readable output.\n");
+
+    printf("\t-g, --debug\n\t\tRun in debug mode. Asks for a confirmation for every operation.\n"\
+           "\t\tUseful for tracing IO requests on the block device level (via btrace, etc.).\n");
+    printf("\t\tValid only for one thread and one workload.\n");
+    
     exit(0);
 }
 
@@ -95,7 +102,10 @@ void parse_duration(char *duration, workload_config_t *config) {
         return;
 
     int len = strlen(duration);
-    if(duration[len - 1] == '%') {
+    if(duration[0] == 'i' && len == 1) {
+        config->duration_unit = dut_interactive;
+        config->duration = 0;
+    } else if(duration[len - 1] == '%') {
         config->duration_unit = dut_space;
         duration[len - 1] = 0;
         off64_t dev_len = get_device_length(config->device);
@@ -322,6 +332,9 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
     }
 
     parse_duration(duration_buf, config);
+    if(config->duration_unit == dut_interactive && config->threads > 1) {
+        check("Cannot run in interactive mode with multiple threads", 1);
+    }
 }
 
 void print_status(size_t length, workload_config_t *config) {
@@ -347,7 +360,7 @@ void print_status(size_t length, workload_config_t *config) {
     printf("[duration: ");
     if(config->duration_unit == dut_time) {
         printf("%llds, ", config->duration);
-    } else {
+    } else if(config->duration_unit == dut_space) {
         long long hl = config->duration / 1024 / 1024 / 1024;
         if(hl != 0)
             printf("%lldGB, ", hl);
@@ -363,6 +376,8 @@ void print_status(size_t length, workload_config_t *config) {
                     printf("%lldb, ", config->duration);
             }
         }
+    } else {
+        printf("interactive, ");
     }
 
     printf("threads: %d, ", config->threads);
