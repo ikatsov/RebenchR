@@ -118,9 +118,7 @@ void* run_simulation(void *arg) {
     while(!(*info->is_done)) {
         long long ops = __sync_fetch_and_add(&(info->ops), 1);
         if(!perform_op(info->fd, info->mmap, buf, ops, rnd_gen, info->config)) {
-            if(info->config->duration_unit == dut_interactive) {
-                *info->is_done = 1;
-            }
+            *info->is_done = 1;
             goto done;
         }
         // Read from the buffer to make sure there is no optimization
@@ -274,14 +272,14 @@ int main(int argc, char *argv[])
                         usleep(5000);
                     }
                 }
-                // If the workload is done, wait for all the threads and grab the time
-                if(ws->is_done) {
-                    for(i = 0; i < ws->config.threads; i++) {
-                        check("Error joining thread",
-                              pthread_join(ws->threads[i], NULL) != 0);
-                    }
-                    ws->end_time = get_ticks();
+            }
+            // If the workload is done, wait for all the threads and grab the time
+            if(ws->is_done) {
+                for(i = 0; i < ws->config.threads; i++) {
+                    check("Error joining thread",
+                          pthread_join(ws->threads[i], NULL) != 0);
                 }
+                ws->end_time = get_ticks();
             }
         }
         
