@@ -46,6 +46,7 @@ struct workload_config_t {
     char device[DEVICE_NAME_LENGTH];
     off64_t offset;
     off64_t length;
+    off64_t device_length;
     int direct_io;
     int local_fd;
     int buffered;

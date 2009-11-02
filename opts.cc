@@ -9,6 +9,8 @@
 
 int HARDWARE_BLOCK_SIZE = 512;
 
+void print_size(off64_t size);
+
 void init_workload_config(workload_config_t *config) {
     bzero(config, sizeof(*config));
     config->silent = 0;
@@ -135,7 +137,7 @@ void parse_duration(char *duration, workload_config_t *config) {
         config->duration = 0;
     } else {
         config->duration_unit = dut_space;
-        config->duration = parse_size(duration, get_device_length(config->device));
+        config->duration = parse_size(duration, config->device_length);
         if(duration[len - 1] != '%' &&
            duration[len - 1] != 'k' &&
            duration[len - 1] != 'm' &&
@@ -147,11 +149,11 @@ void parse_duration(char *duration, workload_config_t *config) {
 }
 
 void parse_length(char *length, workload_config_t *config) {
-    config->length = parse_size(length, get_device_length(config->device));
+    config->length = parse_size(length, config->device_length);
 }
 
 void parse_offset(char *length, workload_config_t *config) {
-    config->offset = parse_size(length, get_device_length(config->device));
+    config->offset = parse_size(length, config->device_length);
     config->offset = config->offset / 512 * 512;
 }
 
@@ -376,11 +378,16 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
     if(offset_arg) {
         parse_offset(offset_arg, config);
     }
+
+    config->device_length = get_device_length(config->device);
         
     if(config->length == 0) {
-        config->length = get_device_length(config->device);
+        config->length = config->device_length;
     } else {
-        config->length = std::min(config->length, get_device_length(config->device));
+        config->length = std::min(config->length, config->device_length);
+        if(config->offset + config->length > config->device_length) {
+            config->length = config->device_length - config->offset;
+        }
     }
 
     parse_duration(duration_buf, config);
@@ -430,7 +437,7 @@ void print_status(off64_t length, workload_config_t *config) {
         print_size(config->offset);
         printf(", ");
     }
-    if(config->length != get_device_length(config->device)) {
+    if(config->length != config->device_length) {
         printf("length: ");
         print_size(config->length);
         printf(", ");

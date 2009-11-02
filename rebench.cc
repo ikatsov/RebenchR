@@ -15,7 +15,7 @@
 
 using namespace std;
 
-void setup_io(int *fd, off64_t *length, void **map, workload_config_t *config) {
+void setup_io(int *fd, void **map, workload_config_t *config) {
     int res;
     int flags = 0;
     
@@ -51,15 +51,17 @@ void setup_io(int *fd, off64_t *length, void **map, workload_config_t *config) {
             prot = PROT_READ;
         else
             prot = PROT_WRITE | PROT_READ;
-        *map = mmap(NULL, *length + config->offset, prot, MAP_SHARED, *fd, 0);
+        *map = mmap(NULL,
+                    config->device_length,
+                    prot, MAP_SHARED, *fd, 0);
         check("Unable to mmap memory", *map == MAP_FAILED);
     }
 }
 
-void cleanup_io(int fd, void *map, off64_t length, workload_config_t *config) {
+void cleanup_io(int fd, void *map, workload_config_t *config) {
     if(map) {
         check("Unable to unmap memory",
-              munmap(map, length + config->offset) != 0);
+              munmap(map, config->device_length) != 0);
     }
     close(fd);
 }
@@ -200,7 +202,7 @@ int main(int argc, char *argv[])
         ws->mmap = NULL;
         if(!ws->config.local_fd) {
             // FD is shared for the workload
-            setup_io(&ws->fd, &ws->config.length, &ws->mmap, &ws->config);
+            setup_io(&ws->fd, &ws->mmap, &ws->config);
         }
         ws->start_time = get_ticks();
         for(i = 0; i < ws->config.threads; i++) {
@@ -213,7 +215,7 @@ int main(int argc, char *argv[])
                 sim_info->fd = ws->fd;
                 sim_info->mmap = ws->mmap;
             } else {
-                setup_io(&(sim_info->fd), &ws->config.length, &(sim_info->mmap), &ws->config);
+                setup_io(&(sim_info->fd), &(sim_info->mmap), &ws->config);
             }
             pthread_t thread;
             check("Error creating thread",
@@ -273,17 +275,17 @@ int main(int argc, char *argv[])
         workload_simulation_t *ws = *it;
         for(i = 0; i < ws->config.threads; i++) {
             if(ws->config.local_fd)
-                cleanup_io(ws->sim_infos[i]->fd, ws->sim_infos[i]->mmap, ws->config.length, &ws->config);
+                cleanup_io(ws->sim_infos[i]->fd, ws->sim_infos[i]->mmap, &ws->config);
         }
         ws->ops = compute_total_ops(ws);
         
         if(!ws->config.local_fd)
-            cleanup_io(ws->fd, ws->mmap, ws->config.length, &ws->config);
+            cleanup_io(ws->fd, ws->mmap, &ws->config);
 
         // print results
         if(it != workloads.begin())
             printf("---\n");
-        print_status(get_device_length(ws->config.device), &ws->config);
+        print_status(ws->config.device_length, &ws->config);
         print_stats(ws->start_time, ws->end_time, ws->ops, &ws->config);
 
         // clean up
