@@ -12,8 +12,16 @@
 int is_done(off64_t offset, off64_t length, workload_config_t *config) {
     if(config->workload == wl_rnd)
         return 0;
-    return (offset >= length || offset < 0)
-        && !(config->workload == wl_seq && config->operation == op_write && config->direction == opd_forward);
+    if(config->workload == wl_seq && config->operation == op_write && config->direction == opd_forward)
+        return 0;
+    
+    if(config->direction == opd_forward) {
+        return offset >= config->offset + length;
+    } else if(config->direction == opd_backward) {
+        return offset < config->device_length - config->offset - config->length;
+    }
+
+    return 0;
 }
 
 off64_t prepare_offset(off64_t length, long long ops, rnd_gen_t rnd_gen,
@@ -29,7 +37,7 @@ off64_t prepare_offset(off64_t length, long long ops, rnd_gen_t rnd_gen,
         if(config->direction == opd_forward)
             offset = config->offset + ops * config->stride;
         else if(config->direction == opd_backward) {
-            size_t boundary = length - config->offset;
+            size_t boundary = config->device_length - config->offset;
             boundary = boundary / 512 * 512;
             offset = boundary - config->block_size - ops * config->stride;
         }
@@ -134,8 +142,9 @@ int perform_op(int fd, void *mmap, char *buf, long long ops, rnd_gen_t rnd_gen,
                workload_config_t *config) {
     off64_t res;
     off64_t offset = prepare_offset(config->length, ops, rnd_gen, config);
-    if(is_done(offset, config->length, config))
+    if(is_done(offset, config->length, config)) {
         return 0;
+    }
 
     if(config->duration_unit == dut_interactive) {
         char in;
