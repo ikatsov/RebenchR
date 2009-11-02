@@ -85,7 +85,8 @@ off64_t get_device_length(const char* device) {
     length = lseek64(fd, 0, SEEK_END);
     check("Error computing device size", length == -1);
 
-    close(fd);
+    int res = close(fd);
+    check("Could not close the file", res == -1);
 
     return length;
 }

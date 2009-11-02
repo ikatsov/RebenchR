@@ -33,6 +33,7 @@ void init_workload_config(workload_config_t *config) {
     config->operation = op_read;
     config->dist = rdt_uniform;
     config->sigma = -1;
+    config->drop_caches = 0;
 }
 
 void usage(const char *name) {
@@ -104,6 +105,12 @@ void usage(const char *name) {
     printf("\t-g, --debug\n\t\tRun in debug mode. Asks for a confirmation for every operation.\n" \
            "\t\tUseful for tracing IO requests on the block device level (via btrace, etc.).\n");
     printf("\t\tValid only for one thread and one workload.\n");
+    
+    printf("\t-g, --debug\n\t\tRun in debug mode. Asks for a confirmation for every operation.\n" \
+           "\t\tUseful for tracing IO requests on the block device level (via btrace, etc.).\n");
+    printf("\t\tValid only for one thread and one workload.\n");
+    
+    printf("\t--drop-caches\n\t\tAsks the kernel to drop the cache before running the benchmark.\n");
     
     exit(0);
 }
@@ -186,6 +193,7 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
                 {"append", no_argument, &config->append_only, 1},
                 {"local-fd", no_argument, &config->local_fd, 1},
                 {"silent", no_argument, &config->silent, 1},
+                {"drop-caches", no_argument, &config->drop_caches, 1},
                 {0, 0, 0, 0}
             };
 
@@ -380,14 +388,15 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
     }
 
     config->device_length = get_device_length(config->device);
-        
+    
+    // Set the length
     if(config->length == 0) {
         config->length = config->device_length;
     } else {
         config->length = std::min(config->length, config->device_length);
-        if(config->offset + config->length > config->device_length) {
-            config->length = config->device_length - config->offset;
-        }
+    }
+    if(config->offset + config->length > config->device_length) {
+        config->length = config->device_length - config->offset;
     }
 
     parse_duration(duration_buf, config);

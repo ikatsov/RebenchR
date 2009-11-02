@@ -15,6 +15,18 @@
 
 using namespace std;
 
+void drop_caches(workload_config_t *config) {
+    int res;
+    int fd = open64(config->device, O_NOATIME | O_RDWR);
+    check("Error opening device", fd == -1);
+
+    res = posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);    
+    check("Could not drop caches", res != 0);
+
+    res = close(fd);
+    check("Could not close the file", res == -1);
+}
+
 void setup_io(int *fd, void **map, workload_config_t *config) {
     int res;
     int flags = 0;
@@ -63,7 +75,8 @@ void cleanup_io(int fd, void *map, workload_config_t *config) {
         check("Unable to unmap memory",
               munmap(map, config->device_length) != 0);
     }
-    close(fd);
+    int res = close(fd);
+    check("Could not close the file", res == -1);
 }
 
 // Describes each thread in a workload
@@ -180,6 +193,14 @@ int main(int argc, char *argv[])
 
     if(workloads.empty())
         usage(argv[0]);
+
+    // Drop caches if necessary
+    for(wsp_vector::iterator it = workloads.begin(); it != workloads.end(); ++it) {
+        workload_simulation_t *ws = *it;
+        if(ws->config.drop_caches) {
+            drop_caches(&ws->config);
+        }
+    }
 
     // Start the simulations
     int workload = 1;

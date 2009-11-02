@@ -59,6 +59,7 @@ struct workload_config_t {
     rnd_dist_t dist;
     int sigma;
     int silent;    
+    int drop_caches;
 };
 
 // Operations
