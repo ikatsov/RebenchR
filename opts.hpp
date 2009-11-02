@@ -44,6 +44,8 @@ struct workload_config_t {
     duration_unit_t duration_unit;
     int stride;
     char device[DEVICE_NAME_LENGTH];
+    off64_t offset;
+    off64_t length;
     int direct_io;
     int local_fd;
     int buffered;
@@ -62,7 +64,7 @@ struct workload_config_t {
 void check(const char *str, int error);
 void usage(const char *name);
 void parse_options(int argc, char *argv[], workload_config_t *config);
-void print_status(size_t length, workload_config_t *config);
+void print_status(off64_t length, workload_config_t *config);
 
 #endif // __OPTS_HPP__
 

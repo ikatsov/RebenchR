@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <string.h>
+#include <algorithm>
 #include "opts.hpp"
 #include "utils.hpp"
 
@@ -17,6 +18,8 @@ void init_workload_config(workload_config_t *config) {
     config->duration_unit = dut_time;
     config->stride = HARDWARE_BLOCK_SIZE;
     config->device[0] = NULL;
+    config->offset = 0;
+    config->length = 0;
     config->direct_io = 1;
     config->local_fd = 0;
     config->buffered = 0;
@@ -90,42 +93,63 @@ void usage(const char *name) {
     printf("\t-n, --silent\n\t\tNon-interactive mode. Won't ask for write confirmation, and will\n"\
            "\t\tprint machine readable output.\n");
 
-    printf("\t-g, --debug\n\t\tRun in debug mode. Asks for a confirmation for every operation.\n"\
+    /*
+    printf("\t-j, --offset\n\t\tThe offset in the file to start operations from.\n");
+    printf("\t\tBy default, this value is set to zero.\n");
+    */
+
+    printf("\t-e, --length\n\t\tThe length from the offset in the file to perform operations on.\n");
+    printf("\t\tBy default, this value is set to the length of the file or the device.\n");
+
+    printf("\t-g, --debug\n\t\tRun in debug mode. Asks for a confirmation for every operation.\n" \
            "\t\tUseful for tracing IO requests on the block device level (via btrace, etc.).\n");
     printf("\t\tValid only for one thread and one workload.\n");
     
     exit(0);
 }
 
+off64_t parse_size(char *size, off64_t full_length) {
+    if(!size[0])
+        return -1;
+
+    int len = strlen(size);
+    if(size[len - 1] == '%') {
+        return (long long)((float)full_length / 100.0f * atoll(size));
+    } else if(size[len - 1] == 'k') {
+        return atoll(size) * 1024L;
+    } else if(size[len - 1] == 'm') {
+        return atoll(size) * 1024L * 1024L;
+    } else if(size[len - 1] == 'g') {
+        return atoll(size) * 1024L * 1024L * 1024L;
+    } else {
+        return atoll(size);
+    }
+}
+
 void parse_duration(char *duration, workload_config_t *config) {
     if(!duration[0])
         return;
 
+    off64_t res;
     int len = strlen(duration);
     if(duration[0] == 'i' && len == 1) {
         config->duration_unit = dut_interactive;
         config->duration = 0;
-    } else if(duration[len - 1] == '%') {
-        config->duration_unit = dut_space;
-        duration[len - 1] = 0;
-        off64_t dev_len = get_device_length(config->device);
-        config->duration = (long long)(dev_len / 100.0f * atol(duration));
-    } else if(duration[len - 1] == 'k') {
-        config->duration_unit = dut_space;
-        duration[len - 1] = 0;
-        config->duration = atol(duration) * 1024L;
-    } else if(duration[len - 1] == 'm') {
-        config->duration_unit = dut_space;
-        duration[len - 1] = 0;
-        config->duration = atol(duration) * 1024L * 1024L;
-    } else if(duration[len - 1] == 'g') {
-        config->duration_unit = dut_space;
-        duration[len - 1] = 0;
-        config->duration = atol(duration) * 1024L * 1024L * 1024L;
     } else {
-        config->duration_unit = dut_time;
-        config->duration = atol(duration);
+        config->duration_unit = dut_space;
+        config->duration = parse_size(duration, config->length);
+        if(duration[len - 1] != '%' &&
+           duration[len - 1] != 'k' &&
+           duration[len - 1] != 'm' &&
+           duration[len - 1] != 'g')
+        {
+            config->duration_unit = dut_time;
+        }
     }
+}
+
+void parse_length(char *length, workload_config_t *config) {
+    config->length = parse_size(length, get_device_length(config->device));
 }
 
 void parse_options(int argc, char *argv[], workload_config_t *config) {
@@ -133,12 +157,15 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
     duration_buf[0] = 0;
     init_workload_config(config);
     optind = 1; // reinit getopt
+    char *length_arg = NULL;
     while(1)
     {
         struct option long_options[] =
             {
                 {"block_size",   required_argument, 0, 'b'},
                 {"duration", required_argument, 0, 'd'},
+                /*{"offset", required_argument, 0, 'j'},*/
+                {"length", required_argument, 0, 'e'},
                 {"threads", required_argument, 0, 'c'},
                 {"stride", required_argument, 0, 's'},
                 {"workload", required_argument, 0, 'w'},
@@ -157,7 +184,7 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
             };
 
         int option_index = 0;
-        int c = getopt_long(argc, argv, "b:d:c:w:t:r:s:o:u:i:mpfaln", long_options, &option_index);
+        int c = getopt_long(argc, argv, "b:d:c:w:t:r:s:o:u:i:e:mpfaln", long_options, &option_index);
      
         /* Detect the end of the options. */
         if (c == -1)
@@ -173,6 +200,14 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
             
         case 'd':
             strcpy(duration_buf, optarg);
+            break;
+     
+        case 'e':
+            length_arg = optarg;
+            break;
+     
+        case 'j':
+            config->offset = atoll(optarg);
             break;
      
         case 'c':
@@ -331,53 +366,67 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
         }
     }
 
+    if(length_arg) {
+        parse_length(length_arg, config);
+    }
+        
+    if(config->length == 0) {
+        config->length = get_device_length(config->device);
+    } else {
+        config->length = std::min(config->length, get_device_length(config->device));
+    }
+
     parse_duration(duration_buf, config);
     if(config->duration_unit == dut_interactive && config->threads > 1) {
         check("Cannot run in interactive mode with multiple threads", 1);
     }
 }
 
-void print_status(size_t length, workload_config_t *config) {
+void print_size(off64_t size) {
+    long long hl = (long long)((float)size / 1024.0f / 1024.0f / 1024.0f);
+    if(hl != 0)
+        printf("%lldGB", hl);
+    else {
+        long long hl = (long long)((float)size / 1024.0f / 1024.0f);
+        if(hl != 0)
+            printf("%lldMB", hl);
+        else {
+            long long hl = (long long)((float)size / 1024.0f);
+            if(hl != 0 )
+                printf("%lldKB", hl);
+            else
+                printf("%lldb", (long long)size);
+        }
+    }
+}
+
+void print_status(off64_t length, workload_config_t *config) {
     if(config->silent)
         return;
     
-    long long hl = length / 1024 / 1024 / 1024;
-    if(hl != 0)
-        printf("Benchmarking results for [%s] (%lldGB)\n", config->device, hl);
-    else {
-        long long hl = length / 1024 / 1024;
-        if(hl != 0)
-            printf("Benchmarking results for [%s] (%lldMB)\n", config->device, hl);
-        else {
-            long long hl = length / 1024;
-            if(hl != 0 )
-                printf("Benchmarking results for [%s] (%lldKB)\n", config->device, hl);
-            else
-                printf("Benchmarking results for [%s] (%lldb)\n", config->device, (long long)length);
-        }
-    }
+    printf("Benchmarking results for [%s] (", config->device);
+    print_size(length);
+    printf(")\n");
         
     printf("[duration: ");
     if(config->duration_unit == dut_time) {
         printf("%llds, ", config->duration);
     } else if(config->duration_unit == dut_space) {
-        long long hl = config->duration / 1024 / 1024 / 1024;
-        if(hl != 0)
-            printf("%lldGB, ", hl);
-        else {
-            long long hl = config->duration / 1024 / 1024;
-            if(hl != 0)
-                printf("%lldMB, ", hl);
-            else {
-                long long hl = config->duration / 1024;
-                if(hl != 0 )
-                    printf("%lldKB, ", hl);
-                else
-                    printf("%lldb, ", config->duration);
-            }
-        }
+        print_size(config->duration);
+        printf(", ");
     } else {
         printf("interactive, ");
+    }
+
+    if(config->offset != 0) {
+        printf("offset: ");
+        print_size(config->offset);
+        printf(", ");
+    }
+    if(config->length != get_device_length(config->device)) {
+        printf("length: ");
+        print_size(config->length);
+        printf(", ");
     }
 
     printf("threads: %d, ", config->threads);

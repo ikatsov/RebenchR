@@ -42,8 +42,6 @@ void setup_io(int *fd, off64_t *length, void **map, workload_config_t *config) {
     if(config->append_only)
         flags |= O_APPEND;
 
-    *length = get_device_length(config->device);
-    
     *fd = open64(config->device, flags);
     check("Error opening device", *fd == -1);
 
@@ -71,7 +69,6 @@ struct simulation_info_t {
     int *is_done;
     long ops;
     int fd;
-    off64_t length;
     workload_config_t *config;
     void *mmap;
 };
@@ -83,7 +80,6 @@ struct workload_simulation_t {
     workload_config_t config;
     int is_done;
     int fd;
-    off64_t length;
     ticks_t start_time, end_time;
     long long ops;
     void *mmap;
@@ -106,7 +102,7 @@ void* run_simulation(void *arg) {
     char sum = 0;
     while(!(*info->is_done)) {
         long long ops = __sync_fetch_and_add(&(info->ops), 1);
-        if(!perform_op(info->fd, info->mmap, buf, info->length, ops, rnd_gen, info->config)) {
+        if(!perform_op(info->fd, info->mmap, buf, ops, rnd_gen, info->config)) {
             if(info->config->duration_unit == dut_interactive) {
                 *info->is_done = 1;
             }
@@ -204,7 +200,7 @@ int main(int argc, char *argv[])
         ws->mmap = NULL;
         if(!ws->config.local_fd) {
             // FD is shared for the workload
-            setup_io(&ws->fd, &ws->length, &ws->mmap, &ws->config);
+            setup_io(&ws->fd, &ws->config.length, &ws->mmap, &ws->config);
         }
         ws->start_time = get_ticks();
         for(i = 0; i < ws->config.threads; i++) {
@@ -215,10 +211,9 @@ int main(int argc, char *argv[])
             sim_info->mmap = NULL;
             if(!ws->config.local_fd) {
                 sim_info->fd = ws->fd;
-                sim_info->length = ws->length;
                 sim_info->mmap = ws->mmap;
             } else {
-                setup_io(&(sim_info->fd), &(sim_info->length), &(sim_info->mmap), &ws->config);
+                setup_io(&(sim_info->fd), &ws->config.length, &(sim_info->mmap), &ws->config);
             }
             pthread_t thread;
             check("Error creating thread",
@@ -278,17 +273,17 @@ int main(int argc, char *argv[])
         workload_simulation_t *ws = *it;
         for(i = 0; i < ws->config.threads; i++) {
             if(ws->config.local_fd)
-                cleanup_io(ws->sim_infos[i]->fd, ws->sim_infos[i]->mmap, ws->sim_infos[i]->length);
+                cleanup_io(ws->sim_infos[i]->fd, ws->sim_infos[i]->mmap, ws->config.length);
         }
         ws->ops = compute_total_ops(ws);
         
         if(!ws->config.local_fd)
-            cleanup_io(ws->fd, ws->mmap, ws->length);
+            cleanup_io(ws->fd, ws->mmap, ws->config.length);
 
         // print results
         if(it != workloads.begin())
             printf("---\n");
-        print_status(ws->sim_infos[0]->length, &ws->config);
+        print_status(get_device_length(ws->config.device), &ws->config);
         print_stats(ws->start_time, ws->end_time, ws->ops, &ws->config);
 
         // clean up

@@ -129,11 +129,11 @@ void perform_write_op(int fd, void *mmap, off64_t offset, char *buf,
     check("Error writing to device", res == -1 || res != config->block_size);
 }
 
-int perform_op(int fd, void *mmap, char *buf, off64_t length, long long ops, rnd_gen_t rnd_gen,
+int perform_op(int fd, void *mmap, char *buf, long long ops, rnd_gen_t rnd_gen,
                workload_config_t *config) {
     off64_t res;
-    off64_t offset = prepare_offset(length, ops, rnd_gen, config);
-    if(is_done(offset, length, config))
+    off64_t offset = prepare_offset(config->length, ops, rnd_gen, config);
+    if(is_done(offset, config->length, config))
         return 0;
 
     if(config->duration_unit == dut_interactive) {
