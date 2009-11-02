@@ -22,13 +22,13 @@ off64_t prepare_offset(off64_t length, long long ops, rnd_gen_t rnd_gen,
             
     // Setup the offset
     if(config->workload == wl_rnd) {
-        offset = (get_random(rnd_gen, config->dist, length, config->sigma) /
-                  config->stride * config->stride);
+        offset = config->offset +
+            (get_random(rnd_gen, config->dist, length, config->sigma) / config->stride * config->stride);
     } else if(config->workload == wl_seq) {
         if(config->direction == opd_forward)
-            offset = ops * config->stride;
+            offset = config->offset + ops * config->stride;
         else if(config->direction == opd_backward) {
-            size_t boundary = length;
+            size_t boundary = length - config->offset;
             boundary = boundary / 512 * 512;
             offset = boundary - config->block_size - ops * config->stride;
         }

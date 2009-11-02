@@ -93,10 +93,8 @@ void usage(const char *name) {
     printf("\t-n, --silent\n\t\tNon-interactive mode. Won't ask for write confirmation, and will\n"\
            "\t\tprint machine readable output.\n");
 
-    /*
     printf("\t-j, --offset\n\t\tThe offset in the file to start operations from.\n");
     printf("\t\tBy default, this value is set to zero.\n");
-    */
 
     printf("\t-e, --length\n\t\tThe length from the offset in the file to perform operations on.\n");
     printf("\t\tBy default, this value is set to the length of the file or the device.\n");
@@ -137,7 +135,7 @@ void parse_duration(char *duration, workload_config_t *config) {
         config->duration = 0;
     } else {
         config->duration_unit = dut_space;
-        config->duration = parse_size(duration, config->length);
+        config->duration = parse_size(duration, get_device_length(config->device));
         if(duration[len - 1] != '%' &&
            duration[len - 1] != 'k' &&
            duration[len - 1] != 'm' &&
@@ -152,19 +150,25 @@ void parse_length(char *length, workload_config_t *config) {
     config->length = parse_size(length, get_device_length(config->device));
 }
 
+void parse_offset(char *length, workload_config_t *config) {
+    config->offset = parse_size(length, get_device_length(config->device));
+    config->offset = config->offset / 512 * 512;
+}
+
 void parse_options(int argc, char *argv[], workload_config_t *config) {
     char duration_buf[256];
     duration_buf[0] = 0;
     init_workload_config(config);
     optind = 1; // reinit getopt
     char *length_arg = NULL;
+    char *offset_arg = NULL;
     while(1)
     {
         struct option long_options[] =
             {
                 {"block_size",   required_argument, 0, 'b'},
                 {"duration", required_argument, 0, 'd'},
-                /*{"offset", required_argument, 0, 'j'},*/
+                {"offset", required_argument, 0, 'j'},
                 {"length", required_argument, 0, 'e'},
                 {"threads", required_argument, 0, 'c'},
                 {"stride", required_argument, 0, 's'},
@@ -184,7 +188,7 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
             };
 
         int option_index = 0;
-        int c = getopt_long(argc, argv, "b:d:c:w:t:r:s:o:u:i:e:mpfaln", long_options, &option_index);
+        int c = getopt_long(argc, argv, "b:d:c:w:t:r:s:o:u:i:e:j:mpfaln", long_options, &option_index);
      
         /* Detect the end of the options. */
         if (c == -1)
@@ -207,7 +211,7 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
             break;
      
         case 'j':
-            config->offset = atoll(optarg);
+            offset_arg = optarg;
             break;
      
         case 'c':
@@ -368,6 +372,9 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
 
     if(length_arg) {
         parse_length(length_arg, config);
+    }
+    if(offset_arg) {
+        parse_offset(offset_arg, config);
     }
         
     if(config->length == 0) {
