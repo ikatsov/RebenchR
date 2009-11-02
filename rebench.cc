@@ -51,15 +51,15 @@ void setup_io(int *fd, off64_t *length, void **map, workload_config_t *config) {
             prot = PROT_READ;
         else
             prot = PROT_WRITE | PROT_READ;
-        *map = mmap(NULL, *length, prot, MAP_SHARED, *fd, 0);
+        *map = mmap(NULL, *length + config->offset, prot, MAP_SHARED, *fd, 0);
         check("Unable to mmap memory", *map == MAP_FAILED);
     }
 }
 
-void cleanup_io(int fd, void *map, off64_t length) {
+void cleanup_io(int fd, void *map, off64_t length, workload_config_t *config) {
     if(map) {
         check("Unable to unmap memory",
-              munmap(map, length) != 0);
+              munmap(map, length + config->offset) != 0);
     }
     close(fd);
 }
@@ -273,12 +273,12 @@ int main(int argc, char *argv[])
         workload_simulation_t *ws = *it;
         for(i = 0; i < ws->config.threads; i++) {
             if(ws->config.local_fd)
-                cleanup_io(ws->sim_infos[i]->fd, ws->sim_infos[i]->mmap, ws->config.length);
+                cleanup_io(ws->sim_infos[i]->fd, ws->sim_infos[i]->mmap, ws->config.length, &ws->config);
         }
         ws->ops = compute_total_ops(ws);
         
         if(!ws->config.local_fd)
-            cleanup_io(ws->fd, ws->mmap, ws->config.length);
+            cleanup_io(ws->fd, ws->mmap, ws->config.length, &ws->config);
 
         // print results
         if(it != workloads.begin())
