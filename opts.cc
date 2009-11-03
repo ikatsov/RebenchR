@@ -106,10 +106,6 @@ void usage(const char *name) {
            "\t\tUseful for tracing IO requests on the block device level (via btrace, etc.).\n");
     printf("\t\tValid only for one thread and one workload.\n");
     
-    printf("\t-g, --debug\n\t\tRun in debug mode. Asks for a confirmation for every operation.\n" \
-           "\t\tUseful for tracing IO requests on the block device level (via btrace, etc.).\n");
-    printf("\t\tValid only for one thread and one workload.\n");
-    
     printf("\t--drop-caches\n\t\tAsks the kernel to drop the cache before running the benchmark.\n");
     
     exit(0);
