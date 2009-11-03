@@ -91,3 +91,14 @@ off64_t get_device_length(const char* device) {
     return length;
 }
 
+void drop_caches(const char *device) {
+    int res;
+    int fd = open64(device, O_NOATIME | O_RDWR);
+    check("Error opening device", fd == -1);
+
+    res = posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);    
+    check("Could not drop caches", res != 0);
+
+    res = close(fd);
+    check("Could not close the file", res == -1);
+}
