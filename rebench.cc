@@ -14,11 +14,7 @@
 #include "operations.hpp"
 #include "simulation.hpp"
 
-int main(int argc, char *argv[])
-{
-    int i = 0;
-    wsp_vector workloads;
-
+void parse_workloads(int argc, char *argv[], wsp_vector *workloads) {
     // Parse the workloads
     if(argc < 2) {
         char buf[2048];
@@ -37,35 +33,39 @@ int main(int argc, char *argv[])
                 if(ws->config.duration_unit == dut_interactive) {
                     check("Cannot run in interactive mode with stdin workloads", 1);
                 }
-                workloads.push_back(ws);
+                workloads->push_back(ws);
             }
         }
     } else {
         workload_simulation_t *ws = new workload_simulation_t();
         parse_options(argc, argv, &ws->config);
-        workloads.push_back(ws);
+        workloads->push_back(ws);
     }
 
-    if(workloads.empty())
+    if(workloads->empty())
         usage(argv[0]);
+}
 
+void drop_workload_caches(wsp_vector *workloads) {
     // Drop caches if necessary
-    for(wsp_vector::iterator it = workloads.begin(); it != workloads.end(); ++it) {
+    for(wsp_vector::iterator it = workloads->begin(); it != workloads->end(); ++it) {
         workload_simulation_t *ws = *it;
         if(ws->config.drop_caches) {
             drop_caches(ws->config.device);
         }
     }
+}
 
+void start_simulations(wsp_vector *workloads) {
     // Start the simulations
     int workload = 1;
-    for(wsp_vector::iterator it = workloads.begin(); it != workloads.end(); ++it) {
+    for(wsp_vector::iterator it = workloads->begin(); it != workloads->end(); ++it) {
         workload_simulation_t *ws = *it;
 
         if(!ws->config.silent) {
-            if(workloads.size() > 1) {
+            if(workloads->size() > 1) {
                 printf("Starting workload %d...\n", workload);
-                if(workload == workloads.size())
+                if(workload == workloads->size())
                     printf("\n");
             }
             else
@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
             setup_io(&ws->fd, &ws->mmap, &ws->config);
         }
         ws->start_time = get_ticks();
-        for(i = 0; i < ws->config.threads; i++) {
+        for(int i = 0; i < ws->config.threads; i++) {
             simulation_info_t *sim_info = new simulation_info_t();
             bzero(sim_info, sizeof(sim_info));
             sim_info->is_done = &ws->is_done;
@@ -100,13 +100,15 @@ int main(int argc, char *argv[])
             ws->threads.push_back(thread);
         }
     }
+}
 
+void stop_simulations(wsp_vector *workloads) {
     // Stop the simulations
     bool all_done = false;
     int total_slept = 0;
     while(!all_done) {
         all_done = true;
-        for(wsp_vector::iterator it = workloads.begin(); it != workloads.end(); ++it) {
+        for(wsp_vector::iterator it = workloads->begin(); it != workloads->end(); ++it) {
             workload_simulation_t *ws = *it;
             // See if the workload is done
             if(!ws->is_done) {
@@ -132,7 +134,7 @@ int main(int argc, char *argv[])
             }
             // If the workload is done, wait for all the threads and grab the time
             if(ws->is_done) {
-                for(i = 0; i < ws->config.threads; i++) {
+                for(int i = 0; i < ws->config.threads; i++) {
                     check("Error joining thread",
                           pthread_join(ws->threads[i], NULL) != 0);
                 }
@@ -145,11 +147,13 @@ int main(int argc, char *argv[])
             total_slept++;
         }
     }
-    
+}
+
+void compute_stats(wsp_vector *workloads) {
     // Compute the stats
-    for(wsp_vector::iterator it = workloads.begin(); it != workloads.end(); ++it) {
+    for(wsp_vector::iterator it = workloads->begin(); it != workloads->end(); ++it) {
         workload_simulation_t *ws = *it;
-        for(i = 0; i < ws->config.threads; i++) {
+        for(int i = 0; i < ws->config.threads; i++) {
             if(ws->config.local_fd)
                 cleanup_io(ws->sim_infos[i]->fd, ws->sim_infos[i]->mmap, &ws->config);
         }
@@ -159,14 +163,25 @@ int main(int argc, char *argv[])
             cleanup_io(ws->fd, ws->mmap, &ws->config);
 
         // print results
-        if(it != workloads.begin())
+        if(it != workloads->begin())
             printf("---\n");
         print_status(ws->config.device_length, &ws->config);
         print_stats(ws->start_time, ws->end_time, ws->ops, &ws->config);
 
         // clean up
-        for(i = 0; i < ws->sim_infos.size(); i++)
+        for(int i = 0; i < ws->sim_infos.size(); i++)
             delete ws->sim_infos[i];
         delete ws;
     }
+}
+
+int main(int argc, char *argv[])
+{
+    wsp_vector workloads;
+
+    parse_workloads(argc, argv, &workloads);
+    drop_workload_caches(&workloads);
+    start_simulations(&workloads);
+    stop_simulations(&workloads);
+    compute_stats(&workloads);
 }
