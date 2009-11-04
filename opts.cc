@@ -29,6 +29,7 @@ void init_workload_config(workload_config_t *config) {
     config->append_only = 0;
     config->workload = wl_rnd;
     config->io_type = iot_stateful;
+    config->queue_depth = 1;
     config->direction = opd_forward;
     config->operation = op_read;
     config->dist = rdt_uniform;
@@ -64,9 +65,19 @@ void usage(const char *name) {
     printf("\t\tValid options are 'rnd' for a random load, and 'seq' for a sequential load.\n");
 
     printf("\t-t, --type\n\t\tType of IO calls to use.\n");
+    /*
     printf("\t\tValid options are 'stateful' for read/write IO,\n" \
            "\t\t'stateless' for pread/pwrite type of IO, 'mmap' for\n" \
-           "\t\tmemory mapping, and 'aio' for asynchronous IO.\n");
+           "\t\tmemory mapping, 'paio' for POSIX asynchronous IO,\n" \
+           "\t\tand 'naio' for native OS asynchronous IO.");
+    */
+    printf("\t\tValid options are 'stateful' for read/write IO,\n" \
+           "\t\t'stateless' for pread/pwrite type of IO, 'mmap' for\n" \
+           "\t\tmemory mapping, and 'aio' for POSIX asynchronous IO.\n");
+    /*
+    printf("\t-q, --queue-depth\n\t\tThe number of simultaneous AIO calls.\n");
+    printf("\t\tValid only during 'paio', 'naio', and 'naiofd' type of runs.\n");
+    */
     
     printf("\t-r, --direction\n\t\tDirection in which the operations are performed.\n");
     printf("\t\tValid options are 'formward' and 'backward'.\n" \
@@ -102,10 +113,6 @@ void usage(const char *name) {
     printf("\t-e, --length\n\t\tThe length from the offset in the file to perform operations on.\n");
     printf("\t\tBy default, this value is set to the length of the file or the device.\n");
 
-    printf("\t-g, --debug\n\t\tRun in debug mode. Asks for a confirmation for every operation.\n" \
-           "\t\tUseful for tracing IO requests on the block device level (via btrace, etc.).\n");
-    printf("\t\tValid only for one thread and one workload.\n");
-    
     printf("\t--drop-caches\n\t\tAsks the kernel to drop the cache before running the benchmark.\n");
     
     exit(0);
@@ -179,6 +186,7 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
                 {"stride", required_argument, 0, 's'},
                 {"workload", required_argument, 0, 'w'},
                 {"type", required_argument, 0, 't'},
+                {"queue-depth", required_argument, 0, 'q'},
                 {"direction", required_argument, 0, 'r'},
                 {"operation", required_argument, 0, 'o'},
                 {"dist", required_argument, 0, 'u'},
@@ -194,7 +202,7 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
             };
 
         int option_index = 0;
-        int c = getopt_long(argc, argv, "b:d:c:w:t:r:s:o:u:i:e:j:mpfaln", long_options, &option_index);
+        int c = getopt_long(argc, argv, "b:d:c:w:t:q:r:s:o:u:i:e:j:mpfaln", long_options, &option_index);
      
         /* Detect the end of the options. */
         if (c == -1)
@@ -267,13 +275,25 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
             else if(strcmp(optarg, "stateless") == 0)
                 config->io_type = iot_stateless;
             else if(strcmp(optarg, "aio") == 0)
-                config->io_type = iot_aio;
+                config->io_type = iot_paio;
+            /*
+            else if(strcmp(optarg, "paio") == 0)
+                config->io_type = iot_paio;
+            else if(strcmp(optarg, "naio") == 0)
+                config->io_type = iot_naio;
+            else if(strcmp(optarg, "naiofd") == 0)
+                config->io_type = iot_naiofd;
+            */
             else if(strcmp(optarg, "mmap") == 0)
                 config->io_type = iot_mmap;
             else
                 check("Invalid IO type", 1);
             break;
      
+        case 'q':
+            config->queue_depth = atoi(optarg);
+            break;
+            
         case 'r':
             if(strcmp(optarg, "forward") == 0)
                 config->direction = opd_forward;
@@ -375,6 +395,10 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
             }
         }
     }
+
+    check("Queue depth is only relevant for paio, naio, and naiofd workloads",
+          config->queue_depth > 1 && (config->io_type != iot_paio && config->io_type != iot_naio
+                                      && config->io_type != iot_naiofd));
 
     if(length_arg) {
         parse_length(length_arg, config);
@@ -508,12 +532,21 @@ void print_status(off64_t length, workload_config_t *config) {
         printf("stateful, ");
     else if(config->io_type == iot_stateless)
         printf("stateless, ");
-    else if(config->io_type == iot_aio)
-        printf("aio, ");
+    else if(config->io_type == iot_paio)
+        printf("posix AIO, ");
+    else if(config->io_type == iot_naio)
+        printf("native AIO, ");
+    else if(config->io_type == iot_naio)
+        printf("native AIO eventfd, ");
     else if(config->io_type == iot_mmap)
         printf("mmap, ");
     else
         check("Invalid IO type", 1);
+
+    if(config->io_type == iot_paio || config->io_type == iot_naio
+       || config->io_type == iot_naiofd) {
+        printf("queue depth: %d, ", config->queue_depth);
+    }
     
     if(config->workload == wl_seq) {
         printf("direction: ");

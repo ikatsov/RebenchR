@@ -13,7 +13,9 @@ enum workload_t {
 enum io_type_t {
     iot_stateful,
     iot_stateless,
-    iot_aio,
+    iot_paio,
+    iot_naio,
+    iot_naiofd,
     iot_mmap
 };
 enum op_direction_t {
@@ -54,6 +56,7 @@ struct workload_config_t {
     int append_only;
     workload_t workload;
     io_type_t io_type;
+    int queue_depth;
     op_direction_t direction;
     operation_t operation;
     rnd_dist_t dist;

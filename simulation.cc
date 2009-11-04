@@ -1,4 +1,6 @@
 
+#include <aio.h>
+#include <strings.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -49,6 +51,14 @@ void setup_io(int *fd, void **map, workload_config_t *config) {
                     config->device_length,
                     prot, MAP_SHARED, *fd, 0);
         check("Unable to mmap memory", *map == MAP_FAILED);
+    }
+
+    if(config->io_type == iot_paio) {
+        aioinit aio_config;
+        bzero((void*)&aio_config, sizeof(aio_config));
+        aio_config.aio_threads = config->queue_depth;
+        aio_config.aio_num = config->queue_depth;
+        aio_init(&aio_config);
     }
 }
 

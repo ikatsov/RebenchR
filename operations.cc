@@ -55,9 +55,11 @@ void perform_read_op(int fd, void *mmap, off64_t offset, char *buf,
         res = lseek64(fd, offset, SEEK_SET);
         check("Error seeking through device", res == -1);
         res = read(fd, buf, config->block_size);
-    } else if(config->io_type == iot_stateless)
+    } else if(config->io_type == iot_stateless) {
         res = pread64(fd, buf, config->block_size, offset);
-    else if(config->io_type == iot_aio) {
+    }
+    else if(config->io_type == iot_paio) {
+        // TODO: implement queue depth
         aiocb64 read_aio;
         bzero(&read_aio, sizeof(read_aio));
         read_aio.aio_fildes = fd;
@@ -75,6 +77,8 @@ void perform_read_op(int fd, void *mmap, off64_t offset, char *buf,
 
         // Find out how much we've read
         res = aio_return64(&read_aio);
+    } else if(config->io_type == iot_naio || config->io_type == iot_naiofd) {
+        // TODO: implement
     } else if(config->io_type == iot_mmap) {
         memcpy(buf, (char*)mmap + offset, config->block_size);
         res = config->block_size;
@@ -98,7 +102,8 @@ void perform_write_op(int fd, void *mmap, off64_t offset, char *buf,
     } else if(config->io_type == iot_stateless) {
         res = pwrite64(fd, buf, config->block_size, offset);
     }
-    else if(config->io_type == iot_aio) {
+    else if(config->io_type == iot_paio) {
+        // TODO: implement queue depth
         aiocb64 write_aio;
         bzero(&write_aio, sizeof(write_aio));
         write_aio.aio_fildes = fd;
@@ -116,12 +121,14 @@ void perform_write_op(int fd, void *mmap, off64_t offset, char *buf,
 
         // Find out how much we've written
         res = aio_return64(&write_aio);
+    } else if(config->io_type == iot_naio || config->io_type == iot_naiofd) {
+        // TODO: implement
     } else if(config->io_type == iot_mmap) {
         memcpy((char*)mmap + offset, buf, config->block_size);
         res = config->block_size;
     }
 
-    if(config->io_type != iot_aio) {
+    if(config->io_type != iot_paio) {
         if(!config->buffered) {
             if(config->io_type == iot_mmap) {
                 check("Could not flush mmapped memory",
