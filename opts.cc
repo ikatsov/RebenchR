@@ -76,7 +76,7 @@ void usage(const char *name) {
            "\t\tmemory mapping, and 'aio' for POSIX asynchronous IO.\n");
     /*
     printf("\t-q, --queue-depth\n\t\tThe number of simultaneous AIO calls.\n");
-    printf("\t\tValid only during 'paio', 'naio', and 'naiofd' type of runs.\n");
+    printf("\t\tValid only during 'paio', and 'naio' type of runs.\n");
     */
     
     printf("\t-r, --direction\n\t\tDirection in which the operations are performed.\n");
@@ -281,8 +281,6 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
                 config->io_type = iot_paio;
             else if(strcmp(optarg, "naio") == 0)
                 config->io_type = iot_naio;
-            else if(strcmp(optarg, "naiofd") == 0)
-                config->io_type = iot_naiofd;
             */
             else if(strcmp(optarg, "mmap") == 0)
                 config->io_type = iot_mmap;
@@ -396,9 +394,8 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
         }
     }
 
-    check("Queue depth is only relevant for paio, naio, and naiofd workloads",
-          config->queue_depth > 1 && (config->io_type != iot_paio && config->io_type != iot_naio
-                                      && config->io_type != iot_naiofd));
+    check("Queue depth is only relevant for paio, and naio workloads",
+          config->queue_depth > 1 && (config->io_type != iot_paio && config->io_type != iot_naio));
 
     if(length_arg) {
         parse_length(length_arg, config);
@@ -536,15 +533,12 @@ void print_status(off64_t length, workload_config_t *config) {
         printf("posix AIO, ");
     else if(config->io_type == iot_naio)
         printf("native AIO, ");
-    else if(config->io_type == iot_naio)
-        printf("native AIO eventfd, ");
     else if(config->io_type == iot_mmap)
         printf("mmap, ");
     else
         check("Invalid IO type", 1);
 
-    if(config->io_type == iot_paio || config->io_type == iot_naio
-       || config->io_type == iot_naiofd) {
+    if(config->io_type == iot_paio || config->io_type == iot_naio) {
         printf("queue depth: %d, ", config->queue_depth);
     }
     

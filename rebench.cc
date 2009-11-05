@@ -11,7 +11,7 @@
 #include <vector>
 #include "opts.hpp"
 #include "utils.hpp"
-#include "operations.hpp"
+#include "io_engine.hpp"
 #include "simulation.hpp"
 
 void parse_workloads(int argc, char *argv[], wsp_vector *workloads) {
@@ -76,28 +76,28 @@ void start_simulations(wsp_vector *workloads) {
         ws->is_done = 0;
         ws->ops = 0;
         ws->mmap = NULL;
-        if(!ws->config.local_fd) {
-            // FD is shared for the workload
-            setup_io(&ws->fd, &ws->mmap, &ws->config);
-        }
         ws->start_time = get_ticks();
+        io_engine_t *first_engine = NULL;
         for(int i = 0; i < ws->config.threads; i++) {
-            simulation_info_t *sim_info = new simulation_info_t();
-            bzero(sim_info, sizeof(sim_info));
-            sim_info->is_done = &ws->is_done;
-            sim_info->config = &ws->config;
-            sim_info->mmap = NULL;
+            io_engine_t *io_engine = make_engine(ws->config.io_type);
+            io_engine->config = &ws->config;
+            io_engine->is_done = &ws->is_done;
             if(!ws->config.local_fd) {
-                sim_info->fd = ws->fd;
-                sim_info->mmap = ws->mmap;
+                if(first_engine == NULL) {
+                    setup_io(&ws->config, io_engine);
+                } else {
+                    io_engine->copy_io_state(first_engine);
+                }
             } else {
-                setup_io(&(sim_info->fd), &(sim_info->mmap), &ws->config);
+                setup_io(&ws->config, io_engine);
             }
             pthread_t thread;
             check("Error creating thread",
-                  pthread_create(&thread, NULL, &simulation_worker, (void*)sim_info) != 0);
-            ws->sim_infos.push_back(sim_info);
+                  pthread_create(&thread, NULL, &simulation_worker, (void*)io_engine) != 0);
+            ws->engines.push_back(io_engine);
             ws->threads.push_back(thread);
+            if(first_engine == NULL)
+                first_engine = io_engine;
         }
     }
 }
@@ -155,12 +155,12 @@ void compute_stats(wsp_vector *workloads) {
         workload_simulation_t *ws = *it;
         for(int i = 0; i < ws->config.threads; i++) {
             if(ws->config.local_fd)
-                cleanup_io(ws->sim_infos[i]->fd, ws->sim_infos[i]->mmap, &ws->config);
+                cleanup_io(&ws->config, ws->engines[i]);
         }
         ws->ops = compute_total_ops(ws);
         
         if(!ws->config.local_fd)
-            cleanup_io(ws->fd, ws->mmap, &ws->config);
+            cleanup_io(&ws->config, ws->engines[0]);
 
         // print results
         if(it != workloads->begin())
@@ -169,8 +169,8 @@ void compute_stats(wsp_vector *workloads) {
         print_stats(ws->start_time, ws->end_time, ws->ops, &ws->config);
 
         // clean up
-        for(int i = 0; i < ws->sim_infos.size(); i++)
-            delete ws->sim_infos[i];
+        for(int i = 0; i < ws->engines.size(); i++)
+            delete ws->engines[i];
         delete ws;
     }
 }

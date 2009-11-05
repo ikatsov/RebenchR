@@ -15,7 +15,6 @@ enum io_type_t {
     iot_stateless,
     iot_paio,
     iot_naio,
-    iot_naiofd,
     iot_mmap
 };
 enum op_direction_t {

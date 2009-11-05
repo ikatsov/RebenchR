@@ -9,98 +9,41 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "simulation.hpp"
-#include "operations.hpp"
+#include "io_engine.hpp"
 
-void setup_io(int *fd, void **map, workload_config_t *config) {
-    int res;
+void setup_io(workload_config_t *config, io_engine_t *io_engine) {
+    int res, fd;
     int flags = 0;
     
     if(!config->do_atime)
         flags |= O_NOATIME;
     
-    if(config->io_type == iot_mmap) {
-        if(config->operation == op_write)
-            flags |= O_RDWR;
-        else
-            flags |= O_RDONLY;
-    } else {
-        if(config->operation == op_read)
-            flags |= O_RDONLY;
-        else if(config->operation == op_write)
-            flags |= O_WRONLY;
-        else
-            check("Invalid operation", 1);
-    }
-        
     if(config->direct_io)
         flags |= O_DIRECT;
     
     if(config->append_only)
         flags |= O_APPEND;
 
-    *fd = open64(config->device, flags);
-    check("Error opening device", *fd == -1);
+    flags |= io_engine->contribute_open_flags();
+        
+    fd = open64(config->device, flags);
+    check("Error opening device", fd == -1);
 
-    if(config->io_type == iot_mmap) {
-        int prot = 0;
-        if(config->operation == op_read)
-            prot = PROT_READ;
-        else
-            prot = PROT_WRITE | PROT_READ;
-        *map = mmap(NULL,
-                    config->device_length,
-                    prot, MAP_SHARED, *fd, 0);
-        check("Unable to mmap memory", *map == MAP_FAILED);
-    }
+    io_engine->fd = fd;
 
-    if(config->io_type == iot_paio) {
-        aioinit aio_config;
-        bzero((void*)&aio_config, sizeof(aio_config));
-        aio_config.aio_threads = config->queue_depth;
-        aio_config.aio_num = config->queue_depth;
-        aio_init(&aio_config);
-    }
+    io_engine->post_open_setup();
 }
 
-void cleanup_io(int fd, void *map, workload_config_t *config) {
-    if(map) {
-        check("Unable to unmap memory",
-              munmap(map, config->device_length) != 0);
-    }
-    int res = close(fd);
+void cleanup_io(workload_config_t *config, io_engine_t *io_engine) {
+    io_engine->pre_close_teardown();
+    int res = close(io_engine->fd);
     check("Could not close the file", res == -1);
 }
 
 void* simulation_worker(void *arg) {
-    simulation_info_t *info = (simulation_info_t*)arg;
-    rnd_gen_t rnd_gen;
-    char *buf;
-
-    int res = posix_memalign((void**)&buf,
-                             std::max(getpagesize(), info->config->block_size),
-                             info->config->block_size);
-    check("Error allocating memory", res != 0);
-
-    rnd_gen = init_rnd_gen();
-    check("Error initializing random numbers", rnd_gen == NULL);
-
-    char sum = 0;
-    while(!(*info->is_done)) {
-        long long ops = __sync_fetch_and_add(&(info->ops), 1);
-        if(!perform_op(info->fd, info->mmap, buf, ops, rnd_gen, info->config)) {
-            *info->is_done = 1;
-            goto done;
-        }
-        // Read from the buffer to make sure there is no optimization
-        // shenanigans
-	sum += buf[0];
-    }
-
-done:
-    free_rnd_gen(rnd_gen);
-    free(buf);
-
-    return (void*)sum;
+    io_engine_t *io_engine = (io_engine_t*)arg;
+    io_engine->run_benchmark();
+    return NULL;
 }
 
 void print_stats(ticks_t start_time, ticks_t end_time, long long ops, workload_config_t *config) {
@@ -122,7 +65,7 @@ void print_stats(ticks_t start_time, ticks_t end_time, long long ops, workload_c
 long long compute_total_ops(workload_simulation_t *ws) {
     long long ops = 0;
     for(int i = 0; i < ws->config.threads; i++) {
-        ops += __sync_fetch_and_add(&(ws->sim_infos[i]->ops), 0);
+        ops += __sync_fetch_and_add(&(ws->engines[i]->ops), 0);
     }
     return ops;
 }

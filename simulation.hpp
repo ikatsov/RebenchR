@@ -6,30 +6,22 @@
 #include <pthread.h>
 #include "utils.hpp"
 
-// Describes each thread in a workload
-struct simulation_info_t {
-    int *is_done;
-    long ops;
-    int fd;
-    workload_config_t *config;
-    void *mmap;
-};
-
 // Describes each workload simulation
+class io_engine_t;
 struct workload_simulation_t {
-    std::vector<simulation_info_t*> sim_infos;
+    std::vector<io_engine_t*> engines;
     std::vector<pthread_t> threads;
     workload_config_t config;
     int is_done;
-    int fd;
     ticks_t start_time, end_time;
     long long ops;
     void *mmap;
 };
 typedef std::vector<workload_simulation_t*> wsp_vector;
 
-void setup_io(int *fd, void **map, workload_config_t *config);
-void cleanup_io(int fd, void *map, workload_config_t *config);
+class io_engine_t;
+void setup_io(workload_config_t *config, io_engine_t *io_engine);
+void cleanup_io(workload_config_t *config, io_engine_t *io_engine);
 
 void* simulation_worker(void *arg);
 
