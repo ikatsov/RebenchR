@@ -1,7 +1,7 @@
 CC=g++
 CXX=g++
 CXXFLAGS=-g -O2
-LDFLAGS=-lrt -lgsl -lgslcblas
+LDFLAGS=-lrt -laio -lgsl -lgslcblas
 
 rebench: rebench.o opts.o utils.o simulation.o io_engine.o io_engines.o workload.o
 

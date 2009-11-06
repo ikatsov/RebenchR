@@ -65,19 +65,14 @@ void usage(const char *name) {
     printf("\t\tValid options are 'rnd' for a random load, and 'seq' for a sequential load.\n");
 
     printf("\t-t, --type\n\t\tType of IO calls to use.\n");
-    /*
+
     printf("\t\tValid options are 'stateful' for read/write IO,\n" \
            "\t\t'stateless' for pread/pwrite type of IO, 'mmap' for\n" \
            "\t\tmemory mapping, 'paio' for POSIX asynchronous IO,\n" \
            "\t\tand 'naio' for native OS asynchronous IO.");
+    
     printf("\t-q, --queue-depth\n\t\tThe number of simultaneous AIO calls.\n");
     printf("\t\tValid only during 'paio', and 'naio' type of runs.\n");
-    */
-    printf("\t\tValid options are 'stateful' for read/write IO,\n" \
-           "\t\t'stateless' for pread/pwrite type of IO, 'mmap' for\n" \
-           "\t\tmemory mapping, and 'aio' for POSIX asynchronous IO.\n");
-    printf("\t-q, --queue-depth\n\t\tThe number of simultaneous AIO calls.\n");
-    printf("\t\tValid only during 'aio' type of runs.\n");
     
     printf("\t-r, --direction\n\t\tDirection in which the operations are performed.\n");
     printf("\t\tValid options are 'formward' and 'backward'.\n" \
@@ -274,14 +269,10 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
                 config->io_type = iot_stateful;
             else if(strcmp(optarg, "stateless") == 0)
                 config->io_type = iot_stateless;
-            else if(strcmp(optarg, "aio") == 0)
-                config->io_type = iot_paio;
-            /*
             else if(strcmp(optarg, "paio") == 0)
                 config->io_type = iot_paio;
             else if(strcmp(optarg, "naio") == 0)
                 config->io_type = iot_naio;
-            */
             else if(strcmp(optarg, "mmap") == 0)
                 config->io_type = iot_mmap;
             else
@@ -495,6 +486,8 @@ void print_status(off64_t length, workload_config_t *config) {
     printf("block size: %db, ", config->block_size);
     if(config->workload == wl_seq)
         printf("stride: %db, ", config->stride);
+    else
+        printf("alignment: %db, ", config->stride);
 
     printf("workload: ");
     if(config->workload == wl_rnd)

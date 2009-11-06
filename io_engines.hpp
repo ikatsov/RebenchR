@@ -2,6 +2,7 @@
 #ifndef __IO_ENGINES_HPP__
 #define __IO_ENGINES_HPP__
 
+#include <libaio.h>
 #include "io_engine.hpp"
 
 // Stateful engine
@@ -34,6 +35,24 @@ public:
 
 private:
     aiocb64 *requests;
+};
+
+// PAIO engine
+class io_engine_naio_t : public io_engine_t {
+public:
+    virtual void perform_read_op(off64_t offset, char *buf);
+    virtual void perform_write_op(off64_t offset, char *buf);
+    virtual int perform_op(char *buf, long long ops, rnd_gen_t rnd_gen);
+    
+    virtual void run_benchmark();
+
+    void perform_read_op(off64_t offset, char *buf, iocb *request);
+    void perform_write_op(off64_t offset, char *buf, iocb *request);
+    int perform_op(char *buf, iocb *request, long long ops, rnd_gen_t rnd_gen);
+
+private:
+    io_context_t ctx_id;
+    iocb *requests;
 };
 
 // mmap engine

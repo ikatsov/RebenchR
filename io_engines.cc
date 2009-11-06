@@ -182,7 +182,7 @@ void io_engine_paio_t::run_benchmark() {
             if(res == 0) {
                 // Check return value
                 res = aio_return64(aio_reqs[i]);
-                check("Error reading from device", res == -1);
+                check("Error reading from device", res < -1);
                 
                 // Submit another request
                 long long _ops = __sync_fetch_and_add(&ops, 1);
@@ -198,6 +198,122 @@ done:
     free_rnd_gen(rnd_gen);
     free(requests);
     free(buf);
+}
+
+/**
+ * NAIO engine
+ **/
+void io_engine_naio_t::perform_read_op(off64_t offset, char *buf) {
+    check("Unused - if you see this, it's a bug in rebench", 1);
+}
+
+void io_engine_naio_t::perform_write_op(off64_t offset, char *buf) {
+    check("Unused - if you see this, it's a bug in rebench", 1);
+}
+
+int io_engine_naio_t::perform_op(char *buf, long long ops, rnd_gen_t rnd_gen) {
+    check("Unused - if you see this, it's a bug in rebench", 1);
+}
+
+void io_engine_naio_t::run_benchmark() {
+    // Setup context
+    int res = io_setup(config->queue_depth, &ctx_id);
+    check("Could not setup aio context", res != 0);
+    
+    // Create the arrays of requests and buffers
+    requests = (iocb*)malloc(sizeof(iocb) * config->queue_depth);
+    
+    char *buf;
+    res = posix_memalign((void**)&buf,
+                         std::max(getpagesize(), config->block_size),
+                         config->block_size * config->queue_depth);
+    check("Error allocating memory", res != 0);
+
+    // Initialize random number generator
+    rnd_gen_t rnd_gen;
+    rnd_gen = init_rnd_gen();
+    check("Error initializing random numbers", rnd_gen == NULL);
+    
+    // Fill up the queue with initial requests
+    for(int i = 0; i < config->queue_depth; i++) {
+        long long _ops = __sync_fetch_and_add(&ops, 1);
+        if(!perform_op(buf + config->block_size * i, &requests[i], _ops, rnd_gen)) {
+            *is_done = 1;
+            goto done;
+        }
+    }
+
+    // Add more requests as we get results, or quit when done
+    io_event events[config->queue_depth];
+    while(!(*is_done)) {
+        res = io_getevents(ctx_id, 1, config->queue_depth, events, NULL);
+        if(res < 0)
+            errno = -res;
+        check("aio_suspend failed", res < 0);
+
+        // Look through the requests
+        for(int i = 0; i < res; i++) {
+            iocb *req = (iocb*)events[i].obj;
+            // Check return value
+            check("Error reading from device", events[i].res < 0);
+            
+            // Submit another request
+            long long _ops = __sync_fetch_and_add(&ops, 1);
+            if(!perform_op((char*)req->u.c.buf, req, _ops, rnd_gen)) {
+                *is_done = 1;
+                goto done;
+            }
+        }
+    }
+
+done:
+    free_rnd_gen(rnd_gen);
+    free(requests);
+    free(buf);
+}
+
+void io_engine_naio_t::perform_read_op(off64_t offset, char *buf, iocb *request) {
+    bzero(request, sizeof(iocb));
+    io_prep_pread(request, fd, buf, config->block_size, offset);
+    iocb* _requests[1];
+    _requests[0] = request;
+    int res = io_submit(ctx_id, 1, _requests);
+    check("Could not submit IO request", res < 1);
+}
+
+void io_engine_naio_t::perform_write_op(off64_t offset, char *buf, iocb *request) {
+    bzero(request, sizeof(iocb));
+    io_prep_pwrite(request, fd, buf, config->block_size, offset);
+    iocb* _requests[1];
+    _requests[0] = request;
+    int res = io_submit(ctx_id, 1, _requests);
+    check("Could not submit IO request", res < 1);
+}
+
+int io_engine_naio_t::perform_op(char *buf, iocb *request, long long ops, rnd_gen_t rnd_gen) {
+    off64_t res;
+    off64_t offset = prepare_offset(ops, rnd_gen, config);
+    if(::is_done(offset, config)) {
+        return 0;
+    }
+
+    if(config->duration_unit == dut_interactive) {
+        char in;
+        // Ask for confirmation before the operation
+        printf("%lld: Press enter to perform operation, or 'q' to quit: ", ops);
+        in = getchar();
+        if(in == EOF || in == 'q') {
+            return 0;
+        }
+    }
+    
+    // Perform the operation
+    if(config->operation == op_read)
+        perform_read_op(offset, buf, request);
+    else if(config->operation == op_write)
+        perform_write_op(offset, buf, request);
+    
+    return 1;
 }
 
 /**

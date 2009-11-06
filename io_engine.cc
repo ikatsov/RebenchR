@@ -101,7 +101,7 @@ io_engine_t* make_engine(io_type_t engine_type) {
         return new io_engine_paio_t();
         break;
     case iot_naio:
-        // TODO: implement
+        return new io_engine_naio_t();
         break;
     case iot_mmap:
         return new io_engine_mmap_t();
