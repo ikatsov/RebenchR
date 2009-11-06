@@ -35,6 +35,7 @@ void init_workload_config(workload_config_t *config) {
     config->dist = rdt_uniform;
     config->sigma = -1;
     config->drop_caches = 0;
+    config->use_eventfd = 0;
 }
 
 void usage(const char *name) {
@@ -69,10 +70,13 @@ void usage(const char *name) {
     printf("\t\tValid options are 'stateful' for read/write IO,\n" \
            "\t\t'stateless' for pread/pwrite type of IO, 'mmap' for\n" \
            "\t\tmemory mapping, 'paio' for POSIX asynchronous IO,\n" \
-           "\t\tand 'naio' for native OS asynchronous IO.");
+           "\t\tand 'naio' for native OS asynchronous IO.\n");
     
     printf("\t-q, --queue-depth\n\t\tThe number of simultaneous AIO calls.\n");
     printf("\t\tValid only during 'paio', and 'naio' type of runs.\n");
+    
+    printf("\t--eventfd\n\t\tUse eventfd for aio completion notification.\n");
+    printf("\t\tValid only during 'naio' type of runs. Useful for measuring eventfd overhead.\n");
     
     printf("\t-r, --direction\n\t\tDirection in which the operations are performed.\n");
     printf("\t\tValid options are 'formward' and 'backward'.\n" \
@@ -193,6 +197,7 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
                 {"local-fd", no_argument, &config->local_fd, 1},
                 {"silent", no_argument, &config->silent, 1},
                 {"drop-caches", no_argument, &config->drop_caches, 1},
+                {"eventfd", no_argument, &config->use_eventfd, 1},
                 {0, 0, 0, 0}
             };
 
@@ -388,6 +393,9 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
     check("Queue depth is only relevant for paio, and naio workloads",
           config->queue_depth > 1 && (config->io_type != iot_paio && config->io_type != iot_naio));
 
+    check("Eventfd is only relevant for naio workloads",
+          config->use_eventfd == 1 && config->io_type != iot_naio);
+
     if(length_arg) {
         parse_length(length_arg, config);
     }
@@ -533,6 +541,14 @@ void print_status(off64_t length, workload_config_t *config) {
 
     if(config->io_type == iot_paio || config->io_type == iot_naio) {
         printf("queue depth: %d, ", config->queue_depth);
+    }
+    
+    if(config->io_type == iot_naio) {
+        printf("eventfd: ");
+        if(config->use_eventfd)
+            printf("yes, ");
+        else
+            printf("no, ");
     }
     
     if(config->workload == wl_seq) {

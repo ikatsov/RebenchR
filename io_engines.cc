@@ -4,7 +4,9 @@
 #include <strings.h>
 #include <string.h>
 #include <sys/types.h>
+#include <sys/epoll.h>
 #include <sys/stat.h>
+#include <sys/eventfd.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -219,6 +221,28 @@ void io_engine_naio_t::run_benchmark() {
     // Setup context
     int res = io_setup(config->queue_depth, &ctx_id);
     check("Could not setup aio context", res != 0);
+
+    // Setup eventfd if necessary
+    int epoll_fd = -1;
+    if(config->use_eventfd) {
+        // Create notification fd
+        notification_fd = eventfd(0, 0);
+        check("Could not create aio notification fd", notification_fd == -1);
+
+        res = fcntl(notification_fd, F_SETFL, O_NONBLOCK);
+        check("Could not make aio notify fd non-blocking", res != 0);
+
+        epoll_fd = epoll_create(config->queue_depth);
+        check("Could not create epoll fd", epoll_fd == -1);
+
+        // Associate notification_fd with epoll_fd
+        epoll_event event;
+        bzero(&event, sizeof(epoll_event));
+        event.events = EPOLLET | EPOLLIN;
+        event.data.fd = notification_fd;
+        int res = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, notification_fd, &event);
+        check("Could not pass socket to worker", res != 0);
+    }
     
     // Create the arrays of requests and buffers
     requests = (iocb*)malloc(sizeof(iocb) * config->queue_depth);
@@ -246,6 +270,21 @@ void io_engine_naio_t::run_benchmark() {
     // Add more requests as we get results, or quit when done
     io_event events[config->queue_depth];
     while(!(*is_done)) {
+        if(config->use_eventfd) {
+            epoll_event events[1];
+            res = epoll_wait(epoll_fd, events, 1, -1);
+            // epoll_wait might return with EINTR in some cases (in
+            // particular under GDB), we just need to retry.
+            if(res == -1 && errno == EINTR)
+                continue;
+            check("Waiting for epoll events failed", res == -1);
+            
+            // Read eventfd
+            eventfd_t nevents_total;
+            res = eventfd_read(notification_fd, &nevents_total);
+            check("Could not read notification_fd value", res != 0);
+        }
+        
         res = io_getevents(ctx_id, 1, config->queue_depth, events, NULL);
         if(res < 0)
             errno = -res;
@@ -270,11 +309,15 @@ done:
     free_rnd_gen(rnd_gen);
     free(requests);
     free(buf);
+    if(config->use_eventfd)
+        close(epoll_fd);
 }
 
 void io_engine_naio_t::perform_read_op(off64_t offset, char *buf, iocb *request) {
     bzero(request, sizeof(iocb));
     io_prep_pread(request, fd, buf, config->block_size, offset);
+    if(config->use_eventfd)
+        io_set_eventfd(request, notification_fd);
     iocb* _requests[1];
     _requests[0] = request;
     int res = io_submit(ctx_id, 1, _requests);
@@ -284,6 +327,8 @@ void io_engine_naio_t::perform_read_op(off64_t offset, char *buf, iocb *request)
 void io_engine_naio_t::perform_write_op(off64_t offset, char *buf, iocb *request) {
     bzero(request, sizeof(iocb));
     io_prep_pwrite(request, fd, buf, config->block_size, offset);
+    if(config->use_eventfd)
+        io_set_eventfd(request, notification_fd);
     iocb* _requests[1];
     _requests[0] = request;
     int res = io_submit(ctx_id, 1, _requests);

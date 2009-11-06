@@ -53,6 +53,7 @@ public:
 private:
     io_context_t ctx_id;
     iocb *requests;
+    int notification_fd;
 };
 
 // mmap engine

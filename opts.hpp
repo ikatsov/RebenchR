@@ -62,6 +62,7 @@ struct workload_config_t {
     int sigma;
     int silent;    
     int drop_caches;
+    int use_eventfd;
 };
 
 // Operations
