@@ -1,4 +1,5 @@
 
+#include <errno.h>
 #include <aio.h>
 #include <strings.h>
 #include <string.h>
@@ -10,6 +11,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "io_engines.hpp"
+#include "workload.hpp"
 
 /**
  * Stateful engine
@@ -70,62 +72,132 @@ void io_engine_stateless_t::perform_write_op(off64_t offset, char *buf) {
  * PAIO engine
  **/
 void io_engine_paio_t::post_open_setup() {
+    /*
     aioinit aio_config;
     bzero((void*)&aio_config, sizeof(aio_config));
     aio_config.aio_threads = config->queue_depth;
     aio_config.aio_num = config->queue_depth;
     aio_init(&aio_config);
+    */
+    // This causes crashes for some reason.
 }
 
 void io_engine_paio_t::perform_read_op(off64_t offset, char *buf) {
-    off64_t res = -1;
-    
-    // TODO: implement queue depth
-    aiocb64 read_aio;
-    bzero(&read_aio, sizeof(read_aio));
-    read_aio.aio_fildes = fd;
-    read_aio.aio_offset = offset;
-    read_aio.aio_nbytes = config->block_size;
-    read_aio.aio_buf = buf;
-    res = aio_read64(&read_aio);
-    check("aio_read failed", res != 0);
-
-    // Wait for it to complete
-    aiocb64* aio_reqs[1];
-    aio_reqs[0] = &read_aio;
-    res = aio_suspend64(aio_reqs, 1, NULL);
-    check("aio_suspend failed", res != 0);
-
-    // Find out how much we've read
-    res = aio_return64(&read_aio);
-    
-    check("Error reading from device", res == -1);
-    check("Attempting to read from the end of the device", res == 0);
+    check("Unused - if you see this, it's a bug in rebench", 1);
+}
+void io_engine_paio_t::perform_write_op(off64_t offset, char *buf) {
+    check("Unused - if you see this, it's a bug in rebench", 1);
+}
+int io_engine_paio_t::perform_op(char *buf, long long ops, rnd_gen_t rnd_gen) {
+    check("Unused - if you see this, it's a bug in rebench", 1);
 }
 
-void io_engine_paio_t::perform_write_op(off64_t offset, char *buf) {
+void io_engine_paio_t::perform_read_op(off64_t offset, char *buf, aiocb64 *request) {
     off64_t res = -1;
     
-    // TODO: implement queue depth
-    aiocb64 write_aio;
-    bzero(&write_aio, sizeof(write_aio));
-    write_aio.aio_fildes = fd;
-    write_aio.aio_offset = offset;
-    write_aio.aio_nbytes = config->block_size;
-    write_aio.aio_buf = buf;
-    res = aio_write64(&write_aio);
+    bzero(request, sizeof(aiocb64));
+    request->aio_fildes = fd;
+    request->aio_offset = offset;
+    request->aio_nbytes = config->block_size;
+    request->aio_buf = buf;
+    res = aio_read64(request);
+    check("aio_read failed", res != 0);
+}
+
+void io_engine_paio_t::perform_write_op(off64_t offset, char *buf, aiocb64 *request) {
+    off64_t res = -1;
+    
+    bzero(request, sizeof(aiocb64));
+    request->aio_fildes = fd;
+    request->aio_offset = offset;
+    request->aio_nbytes = config->block_size;
+    request->aio_buf = buf;
+    res = aio_write64(request);
     check("aio_write failed", res != 0);
+}
 
-    // Wait for it to complete
-    aiocb64* aio_reqs[1];
-    aio_reqs[0] = &write_aio;
-    res = aio_suspend64(aio_reqs, 1, NULL);
-    check("aio_suspend failed", res != 0);
+int io_engine_paio_t::perform_op(char *buf, aiocb64 *request, long long ops, rnd_gen_t rnd_gen) {
+    off64_t res;
+    off64_t offset = prepare_offset(ops, rnd_gen, config);
+    if(::is_done(offset, config)) {
+        return 0;
+    }
 
-    // Find out how much we've written
-    res = aio_return64(&write_aio);
+    if(config->duration_unit == dut_interactive) {
+        char in;
+        // Ask for confirmation before the operation
+        printf("%lld: Press enter to perform operation, or 'q' to quit: ", ops);
+        in = getchar();
+        if(in == EOF || in == 'q') {
+            return 0;
+        }
+    }
+    
+    // Perform the operation
+    if(config->operation == op_read)
+        perform_read_op(offset, buf, request);
+    else if(config->operation == op_write)
+        perform_write_op(offset, buf, request);
+    
+    return 1;
+}
 
-    check("Error writing to device", res == -1 || res != config->block_size);
+void io_engine_paio_t::run_benchmark() {
+    // Create the arrays of requests and buffers
+    requests = (aiocb64*)malloc(sizeof(aiocb64) * config->queue_depth);
+    
+    char *buf;
+    int res = posix_memalign((void**)&buf,
+                             std::max(getpagesize(), config->block_size),
+                             config->block_size * config->queue_depth);
+    check("Error allocating memory", res != 0);
+
+    // Initialize random number generator
+    rnd_gen_t rnd_gen;
+    rnd_gen = init_rnd_gen();
+    check("Error initializing random numbers", rnd_gen == NULL);
+    
+    // Fill up the queue with initial requests
+    aiocb64* aio_reqs[config->queue_depth];
+    for(int i = 0; i < config->queue_depth; i++) {
+        aio_reqs[i] = &requests[i];
+        long long _ops = __sync_fetch_and_add(&ops, 1);
+        if(!perform_op(buf + config->block_size * i, aio_reqs[i], _ops, rnd_gen)) {
+            *is_done = 1;
+            goto done;
+        }
+    }
+
+    // Add more requests as we get results, or quit when done
+    while(!(*is_done)) {
+        res = aio_suspend64(aio_reqs, config->queue_depth, NULL);
+        check("aio_suspend failed", res != 0);
+
+        // Look through the requests
+        for(int i = 0; i < config->queue_depth; i++) {
+            res = aio_error64(aio_reqs[i]);
+            if(res > 0)
+                errno = res;
+            check("Error completing aio request", res > 0 && res != EINPROGRESS);
+            if(res == 0) {
+                // Check return value
+                res = aio_return64(aio_reqs[i]);
+                check("Error reading from device", res == -1);
+                
+                // Submit another request
+                long long _ops = __sync_fetch_and_add(&ops, 1);
+                if(!perform_op(buf + config->block_size * i, aio_reqs[i], _ops, rnd_gen)) {
+                    *is_done = 1;
+                    goto done;
+                }
+            }
+        }
+    }
+
+done:
+    free_rnd_gen(rnd_gen);
+    free(requests);
+    free(buf);
 }
 
 /**

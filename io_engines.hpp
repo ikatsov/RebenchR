@@ -24,6 +24,16 @@ public:
     virtual void post_open_setup();
     virtual void perform_read_op(off64_t offset, char *buf);
     virtual void perform_write_op(off64_t offset, char *buf);
+    virtual int perform_op(char *buf, long long ops, rnd_gen_t rnd_gen);
+    
+    virtual void run_benchmark();
+
+    void perform_read_op(off64_t offset, char *buf, aiocb64 *request);
+    void perform_write_op(off64_t offset, char *buf, aiocb64 *request);
+    int perform_op(char *buf, aiocb64 *request, long long ops, rnd_gen_t rnd_gen);
+
+private:
+    aiocb64 *requests;
 };
 
 // mmap engine

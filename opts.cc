@@ -70,14 +70,14 @@ void usage(const char *name) {
            "\t\t'stateless' for pread/pwrite type of IO, 'mmap' for\n" \
            "\t\tmemory mapping, 'paio' for POSIX asynchronous IO,\n" \
            "\t\tand 'naio' for native OS asynchronous IO.");
+    printf("\t-q, --queue-depth\n\t\tThe number of simultaneous AIO calls.\n");
+    printf("\t\tValid only during 'paio', and 'naio' type of runs.\n");
     */
     printf("\t\tValid options are 'stateful' for read/write IO,\n" \
            "\t\t'stateless' for pread/pwrite type of IO, 'mmap' for\n" \
            "\t\tmemory mapping, and 'aio' for POSIX asynchronous IO.\n");
-    /*
     printf("\t-q, --queue-depth\n\t\tThe number of simultaneous AIO calls.\n");
-    printf("\t\tValid only during 'paio', and 'naio' type of runs.\n");
-    */
+    printf("\t\tValid only during 'aio' type of runs.\n");
     
     printf("\t-r, --direction\n\t\tDirection in which the operations are performed.\n");
     printf("\t\tValid options are 'formward' and 'backward'.\n" \
