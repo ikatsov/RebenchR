@@ -35,6 +35,11 @@ enum duration_unit_t {
     dut_space,
     dut_interactive
 };
+enum stats_type_t {
+    st_none,
+    st_op,
+    st_op_aggregate
+};
 
 // Workload config
 #define DEVICE_NAME_LENGTH 512
@@ -63,6 +68,7 @@ struct workload_config_t {
     int silent;    
     int drop_caches;
     int use_eventfd;
+    stats_type_t stats_type;
 };
 
 // Operations

@@ -34,6 +34,7 @@ void init_workload_config(workload_config_t *config) {
     config->operation = op_read;
     config->dist = rdt_uniform;
     config->sigma = -1;
+    config->stats_type = st_none;
     config->drop_caches = 0;
     config->use_eventfd = 0;
 }
@@ -111,6 +112,10 @@ void usage(const char *name) {
 
     printf("\t-e, --length\n\t\tThe length from the offset in the file to perform operations on.\n");
     printf("\t\tBy default, this value is set to the length of the file or the device.\n");
+
+    printf("\t-v, --variance-type\n\t\tThe type of variance report on the collected data.\n");
+    printf("\t\tPossible values are 'none', 'op' for a report on each operation, and\n");
+    printf("\t\t'aggregate' for variance over time. By default, this value is 'none'.\n");
 
     printf("\t--drop-caches\n\t\tAsks the kernel to drop the cache before running the benchmark.\n");
     
@@ -190,6 +195,7 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
                 {"operation", required_argument, 0, 'o'},
                 {"dist", required_argument, 0, 'u'},
                 {"sigma", required_argument, 0, 'i'},
+                {"variance-type", required_argument, 0, 'v'},
                 {"paged", no_argument, &config->direct_io, 0},
                 {"buffered", no_argument, &config->buffered, 1},
                 {"do-atime", no_argument, &config->do_atime, 1},
@@ -202,7 +208,7 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
             };
 
         int option_index = 0;
-        int c = getopt_long(argc, argv, "b:d:c:w:t:q:r:s:o:u:i:e:j:mpfaln", long_options, &option_index);
+        int c = getopt_long(argc, argv, "b:d:c:w:t:q:r:s:o:u:i:e:j:v:mpfaln", long_options, &option_index);
      
         /* Detect the end of the options. */
         if (c == -1)
@@ -319,6 +325,19 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
 
         case 'i':
             config->sigma = atoi(optarg);
+            break;
+
+        case 'v':
+            if(strcmp(optarg, "none") == 0)
+                config->stats_type = st_none;
+            else if(strcmp(optarg, "op") == 0)
+                config->stats_type = st_op;
+            else if(strcmp(optarg, "aggregate") == 0) {
+                config->stats_type = st_op_aggregate;
+                check("Aggregate option isn't implemented yet", 1);
+            }
+            else
+                check("Invalid variance type", 1);
             break;
 
         case '?':

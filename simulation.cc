@@ -52,15 +52,23 @@ void print_stats(ticks_t start_time, ticks_t end_time, long long ops, workload_c
         return;
     float total_secs = ticks_to_secs(end_time - start_time);
     if(config->silent) {
-        printf("%d %.2f\n",
+        printf("%d %.2f ",
                (int)((float)ops / total_secs),
                ((double)ops * config->block_size / 1024 / 1024) / total_secs);
+        if(config->stats_type == st_op) {
+            printf("%.2f %.2f\n", min_op_time_in_ms, max_op_time_in_ms);
+        }
+        else {
+            printf("\n");
+        }
     } else {
         printf("Operations/sec: %d (%.2f MB/sec) - %lld ops in %.2f secs\n",
                (int)((float)ops / total_secs),
                ((double)ops * config->block_size / 1024 / 1024) / total_secs,
                ops, ticks_to_secs(end_time - start_time));
-        //printf("Stats: min - %.2fms, max - %.2fms\n", min_op_time_in_ms, max_op_time_in_ms);
+        if(config->stats_type == st_op) {
+            printf("Operation time stats: min - %.2fms, max - %.2fms\n", min_op_time_in_ms, max_op_time_in_ms);
+        }
     }
 }
 
