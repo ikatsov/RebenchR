@@ -44,21 +44,30 @@ void io_engine_t::run_benchmark() {
     while(!(*is_done)) {
         long long _ops = __sync_fetch_and_add(&ops, 1);
         
-        ticks_t op_start_time = get_ticks();
+        ticks_t op_start_time, op_end_time;
+        op_start_time = config->stats_type == st_op ? get_ticks() : 0;
         res = perform_op(buf, _ops, rnd_gen);
-        ticks_t op_end_time = get_ticks();
-        float op_ms = ticks_to_ms(op_end_time - op_start_time);
-        if(op_ms > 5000.0f) {
-            printf("start: %llu, end: %llu\n", op_start_time, op_end_time);
-            op_ms = 5.0f;
-        }
+        op_end_time = config->stats_type == st_op ? get_ticks() : 0;
+        float op_ms = config->stats_type == st_op ? ticks_to_ms(op_end_time - op_start_time) : 0;
 
-        // compute some status
-        if(op_ms < min_op_time_in_ms)
-            min_op_time_in_ms = op_ms;
-        if(op_ms > max_op_time_in_ms)
-            max_op_time_in_ms = op_ms;
-        op_total_ms += op_ms;
+        if(config->stats_type == st_op) {
+            // compute some stats
+            // see http://www.eecs.berkeley.edu/~mhoemmen/cs194/Tutorials/variance.pdf
+            if(_ops == 0) {
+                mk = op_ms;
+                qk = 0;
+            } else {
+                float temp = op_ms - mk;
+                mk = mk + (temp / (_ops + 1));
+                qk = qk + (_ops * temp * temp) / (_ops + 1);
+            }
+            
+            if(op_ms < min_op_time_in_ms)
+                min_op_time_in_ms = op_ms;
+            if(op_ms > max_op_time_in_ms)
+                max_op_time_in_ms = op_ms;
+            op_total_ms += op_ms;
+        }
         
         if(!res) {
             *is_done = 1;

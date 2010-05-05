@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <sys/mman.h>
 #include <vector>
+#include <math.h>
 #include "opts.hpp"
 #include "utils.hpp"
 #include "io_engine.hpp"
@@ -155,6 +156,7 @@ void compute_stats(wsp_vector *workloads) {
         float min_op_time_in_ms = 1000000.0f, max_op_time_in_ms = 0.0f, op_total_ms = 0.0f;
         
         workload_simulation_t *ws = *it;
+        float total_variance = 0.0f;
         for(int i = 0; i < ws->config.threads; i++) {
             // Compute stats
             if(ws->engines[i]->min_op_time_in_ms < min_op_time_in_ms)
@@ -162,11 +164,17 @@ void compute_stats(wsp_vector *workloads) {
             if(ws->engines[i]->max_op_time_in_ms > max_op_time_in_ms)
                 max_op_time_in_ms = ws->engines[i]->max_op_time_in_ms;
             op_total_ms += ws->engines[i]->op_total_ms;
+            float variance = ws->engines[i]->qk / ws->engines[i]->ops;
+            // Looks like variances can be pooled, but we should check
+            // with a stats book
+            total_variance += variance;
 
             // Clean up local fds
             if(ws->config.local_fd)
                 cleanup_io(&ws->config, ws->engines[i]);
         }
+        total_variance /= (float)ws->config.threads;
+        float std_dev = sqrt(total_variance);
         ws->ops = compute_total_ops(ws);
         
         if(!ws->config.local_fd)
@@ -176,7 +184,10 @@ void compute_stats(wsp_vector *workloads) {
         if(it != workloads->begin())
             printf("---\n");
         print_status(ws->config.device_length, &ws->config);
-        print_stats(ws->start_time, ws->end_time, ws->ops, &ws->config, min_op_time_in_ms, max_op_time_in_ms, op_total_ms);
+        print_stats(ws->start_time, ws->end_time, ws->ops,
+                    &ws->config,
+                    min_op_time_in_ms, max_op_time_in_ms, op_total_ms,
+                    std_dev);
 
         // clean up
         for(int i = 0; i < ws->engines.size(); i++)

@@ -116,6 +116,7 @@ void usage(const char *name) {
     printf("\t-v, --variance-type\n\t\tThe type of variance report on the collected data.\n");
     printf("\t\tPossible values are 'none', 'op' for a report on each operation, and\n");
     printf("\t\t'aggregate' for variance over time. By default, this value is 'none'.\n");
+    printf("\t\tVariance type is not available with all types of IO calls.\n");
 
     printf("\t--drop-caches\n\t\tAsks the kernel to drop the cache before running the benchmark.\n");
     
@@ -348,6 +349,11 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
         default:
             usage(argv[0]);
         }
+    }
+
+    if(config->stats_type == st_op &&
+       (config->io_type == iot_paio || config->io_type == iot_naio)) {
+        check("Variance op statistics aren't available with this type of IO calls.", 1);
     }
 
     if(config->workload == wl_rnd && config->direction == opd_backward)

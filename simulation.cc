@@ -47,7 +47,8 @@ void* simulation_worker(void *arg) {
 }
 
 void print_stats(ticks_t start_time, ticks_t end_time, long long ops, workload_config_t *config,
-                 float min_op_time_in_ms, float max_op_time_in_ms, float op_total_ms) {
+                 float min_op_time_in_ms, float max_op_time_in_ms, float op_total_ms,
+                 float std_dev) {
     if(config->duration_unit == dut_interactive)
         return;
     float total_secs = ticks_to_secs(end_time - start_time);
@@ -56,7 +57,7 @@ void print_stats(ticks_t start_time, ticks_t end_time, long long ops, workload_c
                (int)((float)ops / total_secs),
                ((double)ops * config->block_size / 1024 / 1024) / total_secs);
         if(config->stats_type == st_op) {
-            printf("%.2f %.2f\n", min_op_time_in_ms, max_op_time_in_ms);
+            printf("%.2f %.2f %.2f %.2f\n", min_op_time_in_ms, max_op_time_in_ms, op_total_ms / ops, std_dev);
         }
         else {
             printf("\n");
@@ -67,7 +68,9 @@ void print_stats(ticks_t start_time, ticks_t end_time, long long ops, workload_c
                ((double)ops * config->block_size / 1024 / 1024) / total_secs,
                ops, ticks_to_secs(end_time - start_time));
         if(config->stats_type == st_op) {
-            printf("Operation time stats: min - %.2fms, max - %.2fms\n", min_op_time_in_ms, max_op_time_in_ms);
+            printf("Operation time stats: min - %.2fms, max - %.2fms, mean - %.2fms, stddev - %.2fms\n",
+                   min_op_time_in_ms, max_op_time_in_ms,
+                   op_total_ms / ops, std_dev);
         }
     }
 }

@@ -4,11 +4,15 @@
 
 #include "simulation.hpp"
 
+#define DEFAULT_MIN_OP_TIME_IN_MS 1000000.0f
+
 class io_engine_t {
 public:
     io_engine_t()
         : config(NULL), fd(0), is_done(NULL), ops(0),
-          min_op_time_in_ms(1000000.0f), max_op_time_in_ms(0.0f), op_total_ms(0.0f), mk(0.0f), qk(0.0f)
+          min_op_time_in_ms(DEFAULT_MIN_OP_TIME_IN_MS),
+          max_op_time_in_ms(0.0f), op_total_ms(0.0f),
+          mk(0.0f), qk(0.0f)
         {}
     
     virtual int contribute_open_flags();
