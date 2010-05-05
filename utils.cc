@@ -24,7 +24,7 @@ float ticks_to_ms(ticks_t ticks) {
 }
 
 ticks_t secs_to_ticks(float secs) {
-    return (long)secs * 1000000000L;
+    return (unsigned long long)secs * 1000000000L;
 }
 
 void check(const char *str, int error) {
