@@ -46,7 +46,8 @@ void* simulation_worker(void *arg) {
     return NULL;
 }
 
-void print_stats(ticks_t start_time, ticks_t end_time, long long ops, workload_config_t *config) {
+void print_stats(ticks_t start_time, ticks_t end_time, long long ops, workload_config_t *config,
+                 float min_op_time_in_ms, float max_op_time_in_ms, float op_total_ms) {
     if(config->duration_unit == dut_interactive)
         return;
     float total_secs = ticks_to_secs(end_time - start_time);
@@ -59,6 +60,7 @@ void print_stats(ticks_t start_time, ticks_t end_time, long long ops, workload_c
                (int)((float)ops / total_secs),
                ((double)ops * config->block_size / 1024 / 1024) / total_secs,
                ops, ticks_to_secs(end_time - start_time));
+        //printf("Stats: min - %.2fms, max - %.2fms\n", min_op_time_in_ms, max_op_time_in_ms);
     }
 }
 

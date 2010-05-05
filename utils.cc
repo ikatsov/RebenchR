@@ -19,8 +19,12 @@ float ticks_to_secs(ticks_t ticks) {
     return ticks / 1000000000.0f;
 }
 
+float ticks_to_ms(ticks_t ticks) {
+    return ticks / 1000000.0f;
+}
+
 ticks_t secs_to_ticks(float secs) {
-    return secs * 1000000000;
+    return (long)secs * 1000000000L;
 }
 
 void check(const char *str, int error) {

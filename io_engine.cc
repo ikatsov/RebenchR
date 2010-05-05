@@ -43,7 +43,24 @@ void io_engine_t::run_benchmark() {
     char sum = 0;
     while(!(*is_done)) {
         long long _ops = __sync_fetch_and_add(&ops, 1);
-        if(!perform_op(buf, _ops, rnd_gen)) {
+        
+        ticks_t op_start_time = get_ticks();
+        res = perform_op(buf, _ops, rnd_gen);
+        ticks_t op_end_time = get_ticks();
+        float op_ms = ticks_to_ms(op_end_time - op_start_time);
+        if(op_ms > 5000.0f) {
+            printf("start: %llu, end: %llu\n", op_start_time, op_end_time);
+            op_ms = 5.0f;
+        }
+
+        // compute some status
+        if(op_ms < min_op_time_in_ms)
+            min_op_time_in_ms = op_ms;
+        if(op_ms > max_op_time_in_ms)
+            max_op_time_in_ms = op_ms;
+        op_total_ms += op_ms;
+        
+        if(!res) {
             *is_done = 1;
             goto done;
         }

@@ -7,7 +7,8 @@
 class io_engine_t {
 public:
     io_engine_t()
-        : config(NULL), fd(0), is_done(NULL), ops(0)
+        : config(NULL), fd(0), is_done(NULL), ops(0),
+          min_op_time_in_ms(1000000.0f), max_op_time_in_ms(0.0f), op_total_ms(0.0f), mk(0.0f), qk(0.0f)
         {}
     
     virtual int contribute_open_flags();
@@ -28,6 +29,12 @@ public:
     workload_config_t *config;
     int *is_done;
     long ops;
+
+    // Basic stats
+    float min_op_time_in_ms, max_op_time_in_ms, op_total_ms;
+    
+    // Standard deviation in linear time (see http://www.cs.berkeley.edu/~mhoemmen/cs194/Tutorials/variance.pdf)
+    float mk, qk;
 };
 
 io_engine_t* make_engine(io_type_t engine_type);

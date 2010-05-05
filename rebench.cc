@@ -152,8 +152,18 @@ void stop_simulations(wsp_vector *workloads) {
 void compute_stats(wsp_vector *workloads) {
     // Compute the stats
     for(wsp_vector::iterator it = workloads->begin(); it != workloads->end(); ++it) {
+        float min_op_time_in_ms = 1000000.0f, max_op_time_in_ms = 0.0f, op_total_ms = 0.0f;
+        
         workload_simulation_t *ws = *it;
         for(int i = 0; i < ws->config.threads; i++) {
+            // Compute stats
+            if(ws->engines[i]->min_op_time_in_ms < min_op_time_in_ms)
+                min_op_time_in_ms = ws->engines[i]->min_op_time_in_ms;
+            if(ws->engines[i]->max_op_time_in_ms > max_op_time_in_ms)
+                max_op_time_in_ms = ws->engines[i]->max_op_time_in_ms;
+            op_total_ms += ws->engines[i]->op_total_ms;
+
+            // Clean up local fds
             if(ws->config.local_fd)
                 cleanup_io(&ws->config, ws->engines[i]);
         }
@@ -166,7 +176,7 @@ void compute_stats(wsp_vector *workloads) {
         if(it != workloads->begin())
             printf("---\n");
         print_status(ws->config.device_length, &ws->config);
-        print_stats(ws->start_time, ws->end_time, ws->ops, &ws->config);
+        print_stats(ws->start_time, ws->end_time, ws->ops, &ws->config, min_op_time_in_ms, max_op_time_in_ms, op_total_ms);
 
         // clean up
         for(int i = 0; i < ws->engines.size(); i++)

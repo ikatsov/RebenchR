@@ -25,7 +25,8 @@ void cleanup_io(workload_config_t *config, io_engine_t *io_engine);
 
 void* simulation_worker(void *arg);
 
-void print_stats(ticks_t start_time, ticks_t end_time, long long ops, workload_config_t *config);
+void print_stats(ticks_t start_time, ticks_t end_time, long long ops, workload_config_t *config,
+                 float min_op_time_in_ms, float max_op_time_in_ms, float op_total_ms);
 long long compute_total_ops(workload_simulation_t *ws);
 
 #endif // __SIMULATION_HPP__
