@@ -40,28 +40,12 @@ void io_engine_t::run_benchmark() {
     rnd_gen = init_rnd_gen();
     check("Error initializing random numbers", rnd_gen == NULL);
 
-    init_std_dev(&std_dev);
-
     char sum = 0;
     while(!(*is_done)) {
         long long _ops = __sync_fetch_and_add(&ops, 1);
         
-        ticks_t op_start_time, op_end_time;
-        op_start_time = config->stats_type == st_op ? get_ticks() : 0;
         res = perform_op(buf, _ops, rnd_gen);
-        op_end_time = config->stats_type == st_op ? get_ticks() : 0;
-        float op_ms = config->stats_type == st_op ? ticks_to_ms(op_end_time - op_start_time) : 0;
 
-        if(config->stats_type == st_op) {
-            // compute some stats
-            add_to_std_dev(&std_dev, op_ms);
-            if(op_ms < min_op_time_in_ms)
-                min_op_time_in_ms = op_ms;
-            if(op_ms > max_op_time_in_ms)
-                max_op_time_in_ms = op_ms;
-            op_total_ms += op_ms;
-        }
-        
         if(!res) {
             *is_done = 1;
             goto done;

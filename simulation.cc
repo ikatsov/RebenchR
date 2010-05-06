@@ -47,36 +47,21 @@ void* simulation_worker(void *arg) {
 }
 
 void print_stats(ticks_t start_time, ticks_t end_time, long long ops, workload_config_t *config,
-                 float min_op_time_in_ms, float max_op_time_in_ms, float op_total_ms, float std_dev,
                  long long min_ops_per_sec, long long max_ops_per_sec, float agg_std_dev) {
     if(config->duration_unit == dut_interactive)
         return;
     float total_secs = ticks_to_secs(end_time - start_time);
     if(config->silent) {
-        printf("%d %.2f ",
-               (int)((float)ops / total_secs),
-               ((double)ops * config->block_size / 1024 / 1024) / total_secs);
-        if(config->stats_type == st_op_aggregate) {
-            printf("%llu %llu %d\n", min_ops_per_sec, max_ops_per_sec, (int)agg_std_dev);
-        } else if(config->stats_type == st_op) {
-            printf("%.2f %.2f %.2f %.2f\n", min_op_time_in_ms, max_op_time_in_ms, op_total_ms / ops, std_dev);
-        }
-        else {
-            printf("\n");
-        }
-    } else {
-        printf("Operations/sec: %d (%.2f MB/sec) - %lld ops in %.2f secs\n",
+        printf("%d %.2f %llu %llu %d\n",
                (int)((float)ops / total_secs),
                ((double)ops * config->block_size / 1024 / 1024) / total_secs,
-               ops, ticks_to_secs(end_time - start_time));
-        if(config->stats_type == st_op_aggregate) {
-            printf("Operations stats: min - %llu, max - %llu, stddev - %d\n",
-                   min_ops_per_sec, max_ops_per_sec, (int)agg_std_dev);
-        } else if(config->stats_type == st_op) {
-            printf("Operation time stats: min - %.2fms, max - %.2fms, mean - %.2fms, stddev - %.2fms\n",
-                   min_op_time_in_ms, max_op_time_in_ms,
-                   op_total_ms / ops, std_dev);
-        }
+               min_ops_per_sec, max_ops_per_sec, (int)agg_std_dev);
+    } else {
+        printf("Ops/sec: mean - %d (%.2f MB/sec), min - %llu, max - %llu, stddev - %d\n",
+               (int)((float)ops / total_secs),
+               ((double)ops * config->block_size / 1024 / 1024) / total_secs,
+               min_ops_per_sec, max_ops_per_sec, (int)agg_std_dev);
+        printf("Total: %lld ops in %.2f secs\n", ops, ticks_to_secs(end_time - start_time));
     }
 }
 

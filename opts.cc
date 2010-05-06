@@ -34,8 +34,7 @@ void init_workload_config(workload_config_t *config) {
     config->operation = op_read;
     config->dist = rdt_uniform;
     config->sigma = -1;
-    config->stats_type = st_none;
-    config->aggregation_step = 1000;
+    config->sample_step = 1000;
     config->drop_caches = 0;
     config->use_eventfd = 0;
 }
@@ -114,13 +113,7 @@ void usage(const char *name) {
     printf("\t-e, --length\n\t\tThe length from the offset in the file to perform operations on.\n");
     printf("\t\tBy default, this value is set to the length of the file or the device.\n");
 
-    printf("\t-v, --variance-type\n\t\tThe type of variance report on the collected data.\n");
-    printf("\t\tPossible values are 'none', 'op' for a report on each operation, and\n");
-    printf("\t\t'aggregate' for variance over time. By default, this value is 'none'.\n");
-    printf("\t\tVariance type is not available with all types of IO calls.\n");
-
-    printf("\t-g, --aggregation-step\n\t\tThe timestep between aggregate IOPS report samples (in milliseconds).\n");
-    printf("\t\tThis argument is only available if 'variance-type' is set to 'aggregate'.\n");
+    printf("\t-g, --sample-step\n\t\tThe timestep between IOPS report samples (in milliseconds).\n");
     printf("\t\tDefaults to 1000ms.\n");
 
     printf("\t--drop-caches\n\t\tAsks the kernel to drop the cache before running the benchmark.\n");
@@ -201,8 +194,7 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
                 {"operation", required_argument, 0, 'o'},
                 {"dist", required_argument, 0, 'u'},
                 {"sigma", required_argument, 0, 'i'},
-                {"variance-type", required_argument, 0, 'v'},
-                {"aggregation-step", required_argument, 0, 'g'},
+                {"sample-step", required_argument, 0, 'g'},
                 {"paged", no_argument, &config->direct_io, 0},
                 {"buffered", no_argument, &config->buffered, 1},
                 {"do-atime", no_argument, &config->do_atime, 1},
@@ -215,7 +207,7 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
             };
 
         int option_index = 0;
-        int c = getopt_long(argc, argv, "b:d:c:w:t:q:r:s:o:u:i:e:j:v:g:mpfaln", long_options, &option_index);
+        int c = getopt_long(argc, argv, "b:d:c:w:t:q:r:s:o:u:i:e:j:g:mpfaln", long_options, &option_index);
      
         /* Detect the end of the options. */
         if (c == -1)
@@ -334,20 +326,8 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
             config->sigma = atoi(optarg);
             break;
 
-        case 'v':
-            if(strcmp(optarg, "none") == 0)
-                config->stats_type = st_none;
-            else if(strcmp(optarg, "op") == 0)
-                config->stats_type = st_op;
-            else if(strcmp(optarg, "aggregate") == 0) {
-                config->stats_type = st_op_aggregate;
-            }
-            else
-                check("Invalid variance type", 1);
-            break;
-
         case 'g':
-            config->aggregation_step = atoi(optarg);
+            config->sample_step = atoi(optarg);
             break;
 
         case '?':
@@ -359,14 +339,6 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
             usage(argv[0]);
         }
     }
-
-    if(config->stats_type == st_op &&
-       (config->io_type == iot_paio || config->io_type == iot_naio)) {
-        check("Variance op statistics aren't available with this type of IO calls.", 1);
-    }
-
-    if(config->aggregation_step != 1000 && config->stats_type != st_op_aggregate)
-        check("Aggregation step can only be used when variance type is set to aggregate.", 1);
 
     if(config->workload == wl_rnd && config->direction == opd_backward)
         check("Direction can only be used for a sequential workload", 1);
@@ -613,17 +585,7 @@ void print_status(off64_t length, workload_config_t *config) {
     else
         printf("off");
 
-    if(config->stats_type != st_none) {
-        printf(", stats type: ");
-        
-        if(config->stats_type == st_op) {
-            printf("single op");
-        } else if(config->stats_type == st_op_aggregate) {
-            printf("aggregate, stats step: %dms", config->aggregation_step);
-        } else {
-            check("Invalid stats type", 1);
-        }
-    }
+    printf(", sample step: %dms", config->sample_step);
     
     printf("]\n");
 }

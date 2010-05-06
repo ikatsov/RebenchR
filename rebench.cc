@@ -121,14 +121,12 @@ void stop_simulations(wsp_vector *workloads) {
             workload_simulation_t *ws = *it;
             
             // Compute ops so far
-            unsigned long long ops_so_far = 0;
-            if((!ws->is_done && ws->config.duration_unit == dut_space) || ws->config.stats_type == st_op_aggregate) {
-                ops_so_far = compute_total_ops(ws);
-            }
+            long long ops_so_far = -1;
             
             // See if the workload is done
             if(!ws->is_done) {
                 if(ws->config.duration_unit == dut_space) {
+                    ops_so_far = compute_total_ops(ws);
                     long long total_bytes = ops_so_far * ws->config.block_size;
                     if(total_bytes >= ws->config.duration) {
                         ws->is_done = 1;
@@ -149,26 +147,27 @@ void stop_simulations(wsp_vector *workloads) {
                 }
             }
 
-            // See if we need to compute aggregate stats
-            if(ws->config.stats_type == st_op_aggregate) {
-                ticks_t ticks_now = get_ticks();
-                unsigned long long ms_passed = ticks_to_ms(ticks_now - last_ticks_now);
-                if(ms_passed >= ws->config.aggregation_step) {
-                    // Compute current stats
-                    unsigned long long ops_this_time = ops_so_far - last_ops_so_far;
-                    int ops_per_sec = (float)ops_this_time / ((float)ms_passed / 1000.0f);
-                    last_ops_so_far = ops_so_far;
-
-                    if(ops_per_sec < min_ops_per_sec)
-                        min_ops_per_sec = ops_per_sec;
-                    if(ops_per_sec > max_ops_per_sec)
-                        max_ops_per_sec = ops_per_sec;
-                    add_to_std_dev(&(ws->std_dev), ops_per_sec);
-                    
-                    // Reset the counter
-                    n_stats_reports++;
-                    last_ticks_now = ticks_now;
+            // Compute stats
+            ticks_t ticks_now = get_ticks();
+            unsigned long long ms_passed = ticks_to_ms(ticks_now - last_ticks_now);
+            if(ms_passed >= ws->config.sample_step) {
+                // Compute current stats
+                if(ops_so_far == -1) {
+                    ops_so_far = compute_total_ops(ws);
                 }
+                unsigned long long ops_this_time = ops_so_far - last_ops_so_far;
+                int ops_per_sec = (float)ops_this_time / ((float)ms_passed / 1000.0f);
+                last_ops_so_far = ops_so_far;
+
+                if(ops_per_sec < min_ops_per_sec)
+                    min_ops_per_sec = ops_per_sec;
+                if(ops_per_sec > max_ops_per_sec)
+                    max_ops_per_sec = ops_per_sec;
+                add_to_std_dev(&(ws->std_dev), ops_per_sec);
+                    
+                // Reset the counter
+                n_stats_reports++;
+                last_ticks_now = ticks_now;
             }
             
             // If the workload is done, wait for all the threads and grab the time
@@ -178,10 +177,8 @@ void stop_simulations(wsp_vector *workloads) {
                           pthread_join(ws->threads[i], NULL) != 0);
                 }
                 ws->end_time = get_ticks();
-                if(ws->config.stats_type == st_op_aggregate) {
-                    ws->min_ops_per_sec = min_ops_per_sec;
-                    ws->max_ops_per_sec = max_ops_per_sec;
-                }
+                ws->min_ops_per_sec = min_ops_per_sec;
+                ws->max_ops_per_sec = max_ops_per_sec;
             }
         }
         
@@ -195,27 +192,12 @@ void stop_simulations(wsp_vector *workloads) {
 void compute_stats(wsp_vector *workloads) {
     // Compute the stats
     for(wsp_vector::iterator it = workloads->begin(); it != workloads->end(); ++it) {
-        float min_op_time_in_ms = 1000000.0f, max_op_time_in_ms = 0.0f, op_total_ms = 0.0f;
-        
         workload_simulation_t *ws = *it;
-        float total_variance = 0.0f;
         for(int i = 0; i < ws->config.threads; i++) {
-            // Compute stats
-            if(ws->engines[i]->min_op_time_in_ms < min_op_time_in_ms)
-                min_op_time_in_ms = ws->engines[i]->min_op_time_in_ms;
-            if(ws->engines[i]->max_op_time_in_ms > max_op_time_in_ms)
-                max_op_time_in_ms = ws->engines[i]->max_op_time_in_ms;
-            op_total_ms += ws->engines[i]->op_total_ms;
-            // Looks like variances can be pooled, but we should check
-            // with a stats book
-            total_variance += get_variance(&(ws->engines[i]->std_dev));
-
             // Clean up local fds
             if(ws->config.local_fd)
                 cleanup_io(&ws->config, ws->engines[i]);
         }
-        total_variance /= (float)ws->config.threads;
-        float std_dev = sqrt(total_variance);
         ws->ops = compute_total_ops(ws);
         
         if(!ws->config.local_fd)
@@ -227,7 +209,6 @@ void compute_stats(wsp_vector *workloads) {
         print_status(ws->config.device_length, &ws->config);
         print_stats(ws->start_time, ws->end_time, ws->ops,
                     &ws->config,
-                    min_op_time_in_ms, max_op_time_in_ms, op_total_ms, std_dev,
                     ws->min_ops_per_sec, ws->max_ops_per_sec,
                     sqrt(get_variance(&(ws->std_dev))));
 
