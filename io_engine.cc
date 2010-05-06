@@ -40,6 +40,8 @@ void io_engine_t::run_benchmark() {
     rnd_gen = init_rnd_gen();
     check("Error initializing random numbers", rnd_gen == NULL);
 
+    init_std_dev(&std_dev);
+
     char sum = 0;
     while(!(*is_done)) {
         long long _ops = __sync_fetch_and_add(&ops, 1);
@@ -52,16 +54,7 @@ void io_engine_t::run_benchmark() {
 
         if(config->stats_type == st_op) {
             // compute some stats
-            // see http://www.eecs.berkeley.edu/~mhoemmen/cs194/Tutorials/variance.pdf
-            if(_ops == 0) {
-                mk = op_ms;
-                qk = 0;
-            } else {
-                float temp = op_ms - mk;
-                mk = mk + (temp / (_ops + 1));
-                qk = qk + (_ops * temp * temp) / (_ops + 1);
-            }
-            
+            add_to_std_dev(&std_dev, op_ms);
             if(op_ms < min_op_time_in_ms)
                 min_op_time_in_ms = op_ms;
             if(op_ms > max_op_time_in_ms)

@@ -78,6 +78,7 @@ void start_simulations(wsp_vector *workloads) {
         ws->ops = 0;
         ws->mmap = NULL;
         ws->start_time = get_ticks();
+        init_std_dev(&(ws->std_dev));
         io_engine_t *first_engine = NULL;
         for(int i = 0; i < ws->config.threads; i++) {
             io_engine_t *io_engine = make_engine(ws->config.io_type);
@@ -107,14 +108,28 @@ void stop_simulations(wsp_vector *workloads) {
     // Stop the simulations
     bool all_done = false;
     int total_slept = 0;
+    ticks_t last_ticks_now = get_ticks();
+
+    // stats info
+    int n_stats_reports = 0;
+    long long min_ops_per_sec = 1000000, max_ops_per_sec = 0;
+    unsigned long long last_ops_so_far = 0;
+    
     while(!all_done) {
         all_done = true;
         for(wsp_vector::iterator it = workloads->begin(); it != workloads->end(); ++it) {
             workload_simulation_t *ws = *it;
+            
+            // Compute ops so far
+            unsigned long long ops_so_far = 0;
+            if((!ws->is_done && ws->config.duration_unit == dut_space) || ws->config.stats_type == st_op_aggregate) {
+                ops_so_far = compute_total_ops(ws);
+            }
+            
             // See if the workload is done
             if(!ws->is_done) {
                 if(ws->config.duration_unit == dut_space) {
-                    long long total_bytes = compute_total_ops(ws) * ws->config.block_size;
+                    long long total_bytes = ops_so_far * ws->config.block_size;
                     if(total_bytes >= ws->config.duration) {
                         ws->is_done = 1;
                     } else {
@@ -133,6 +148,29 @@ void stop_simulations(wsp_vector *workloads) {
                     }
                 }
             }
+
+            // See if we need to compute aggregate stats
+            if(ws->config.stats_type == st_op_aggregate) {
+                ticks_t ticks_now = get_ticks();
+                unsigned long long ms_passed = ticks_to_ms(ticks_now - last_ticks_now);
+                if(ms_passed >= ws->config.aggregation_step) {
+                    // Compute current stats
+                    unsigned long long ops_this_time = ops_so_far - last_ops_so_far;
+                    int ops_per_sec = (float)ops_this_time / ((float)ms_passed / 1000.0f);
+                    last_ops_so_far = ops_so_far;
+
+                    if(ops_per_sec < min_ops_per_sec)
+                        min_ops_per_sec = ops_per_sec;
+                    if(ops_per_sec > max_ops_per_sec)
+                        max_ops_per_sec = ops_per_sec;
+                    add_to_std_dev(&(ws->std_dev), ops_per_sec);
+                    
+                    // Reset the counter
+                    n_stats_reports++;
+                    last_ticks_now = ticks_now;
+                }
+            }
+            
             // If the workload is done, wait for all the threads and grab the time
             if(ws->is_done) {
                 for(int i = 0; i < ws->config.threads; i++) {
@@ -140,6 +178,10 @@ void stop_simulations(wsp_vector *workloads) {
                           pthread_join(ws->threads[i], NULL) != 0);
                 }
                 ws->end_time = get_ticks();
+                if(ws->config.stats_type == st_op_aggregate) {
+                    ws->min_ops_per_sec = min_ops_per_sec;
+                    ws->max_ops_per_sec = max_ops_per_sec;
+                }
             }
         }
         
@@ -164,10 +206,9 @@ void compute_stats(wsp_vector *workloads) {
             if(ws->engines[i]->max_op_time_in_ms > max_op_time_in_ms)
                 max_op_time_in_ms = ws->engines[i]->max_op_time_in_ms;
             op_total_ms += ws->engines[i]->op_total_ms;
-            float variance = ws->engines[i]->qk / ws->engines[i]->ops;
             // Looks like variances can be pooled, but we should check
             // with a stats book
-            total_variance += variance;
+            total_variance += get_variance(&(ws->engines[i]->std_dev));
 
             // Clean up local fds
             if(ws->config.local_fd)
@@ -186,8 +227,9 @@ void compute_stats(wsp_vector *workloads) {
         print_status(ws->config.device_length, &ws->config);
         print_stats(ws->start_time, ws->end_time, ws->ops,
                     &ws->config,
-                    min_op_time_in_ms, max_op_time_in_ms, op_total_ms,
-                    std_dev);
+                    min_op_time_in_ms, max_op_time_in_ms, op_total_ms, std_dev,
+                    ws->min_ops_per_sec, ws->max_ops_per_sec,
+                    sqrt(get_variance(&(ws->std_dev))));
 
         // clean up
         for(int i = 0; i < ws->engines.size(); i++)

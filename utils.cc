@@ -106,3 +106,25 @@ void drop_caches(const char *device) {
     res = close(fd);
     check("Could not close the file", res == -1);
 }
+
+void init_std_dev(std_dev_t *std_dev) {
+    std_dev->mk = 0;
+    std_dev->qk = 0;
+    std_dev->k = 0;
+}
+
+void add_to_std_dev(std_dev_t *std_dev, float x) {
+    std_dev->k += 1;
+    if(std_dev->k == 1) {
+        std_dev->mk = x;
+        std_dev->qk = 0;
+    } else {
+        float temp = x - std_dev->mk;
+        std_dev->mk += (temp / std_dev->k);
+        std_dev->qk += (((std_dev->k - 1) * temp * temp) / std_dev->k);
+    }
+}
+
+float get_variance(std_dev_t *std_dev) {
+    return std_dev->qk / std_dev->k;
+}

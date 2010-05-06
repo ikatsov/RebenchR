@@ -3,6 +3,7 @@
 #define __IO_ENGINE_HPP__
 
 #include "simulation.hpp"
+#include "utils.hpp"
 
 #define DEFAULT_MIN_OP_TIME_IN_MS 1000000.0f
 
@@ -11,8 +12,7 @@ public:
     io_engine_t()
         : config(NULL), fd(0), is_done(NULL), ops(0),
           min_op_time_in_ms(DEFAULT_MIN_OP_TIME_IN_MS),
-          max_op_time_in_ms(0.0f), op_total_ms(0.0f),
-          mk(0.0f), qk(0.0f)
+          max_op_time_in_ms(0.0f), op_total_ms(0.0f)
         {}
     
     virtual int contribute_open_flags();
@@ -36,9 +36,7 @@ public:
 
     // Basic stats
     float min_op_time_in_ms, max_op_time_in_ms, op_total_ms;
-    
-    // Standard deviation in linear time (see http://www.cs.berkeley.edu/~mhoemmen/cs194/Tutorials/variance.pdf)
-    float mk, qk;
+    std_dev_t std_dev;
 };
 
 io_engine_t* make_engine(io_type_t engine_type);

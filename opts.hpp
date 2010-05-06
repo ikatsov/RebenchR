@@ -69,6 +69,7 @@ struct workload_config_t {
     int drop_caches;
     int use_eventfd;
     stats_type_t stats_type;
+    int aggregation_step;
 };
 
 // Operations

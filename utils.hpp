@@ -22,5 +22,14 @@ off64_t get_device_length(const char* device);
 
 void drop_caches(const char *device);
 
+// One pass standard deviation implementation: http://www.cs.berkeley.edu/~mhoemmen/cs194/Tutorials/variance.pdf
+struct std_dev_t {
+    float mk, qk;
+    unsigned long long k;
+};
+void init_std_dev(std_dev_t *std_dev);
+void add_to_std_dev(std_dev_t *std_dev, float x);
+float get_variance(std_dev_t *std_dev);
+
 #endif // __UTILS_HPP__
 
