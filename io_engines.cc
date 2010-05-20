@@ -7,6 +7,7 @@
 #include <sys/epoll.h>
 #include <sys/stat.h>
 #include <sys/eventfd.h>
+#include <sys/ioctl.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -46,6 +47,18 @@ void io_engine_stateful_t::perform_write_op(off64_t offset, char *buf) {
         else
             check("Error syncing data", fdatasync(fd) == -1);
     }
+}
+
+void io_engine_stateful_t::perform_trim_op(off64_t offset) {
+#ifndef BLKDISCARD
+#define BLKDISCARD	_IO(0x12,119)
+#endif
+
+    __uint64_t range[2];
+    range[0] = offset;
+    range[1] = offset + config->block_size;
+    int ret = ioctl(fd, BLKDISCARD, &range);
+    check("Issuing trim command failed", ret != 0);
 }
 
 /**

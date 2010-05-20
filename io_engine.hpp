@@ -23,6 +23,7 @@ public:
     
     virtual void perform_read_op(off64_t offset, char *buf) = 0;
     virtual void perform_write_op(off64_t offset, char *buf) = 0;
+    virtual void perform_trim_op(off64_t offset);
 
     virtual void copy_io_state(io_engine_t *io_engine);
     

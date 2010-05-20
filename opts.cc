@@ -84,7 +84,9 @@ void usage(const char *name) {
            "\t\tThis option is only applicable to sequential workloads.\n");
     
     printf("\t-o, --operation\n\t\tThe operation to be performed.\n");
-    printf("\t\tValid options are 'read' and 'write'.\n");
+    printf("\t\tValid options are 'read', 'write', and 'trim'.\n");
+    printf("\t\tNote that trim is only available on SSD devices\n");
+    printf("\t\tvia a stateful interface.\n");
     
     printf("\t-p, --paged\n\t\tThis options turns off direct IO (which is on by default).\n");
     printf("\t-f, --buffered\n\t\tThis options turns off flushing (flushing is on by default).\n" \
@@ -307,6 +309,8 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
                 config->operation = op_read;
             else if(strcmp(optarg, "write") == 0)
                 config->operation = op_write;
+            else if(strcmp(optarg, "trim") == 0)
+                config->operation = op_trim;
             else
                 check("Invalid operation", 1);
             break;

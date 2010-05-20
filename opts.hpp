@@ -23,7 +23,8 @@ enum op_direction_t {
 };
 enum operation_t {
     op_read,
-    op_write
+    op_write,
+    op_trim
 };
 enum rnd_dist_t {
     rdt_uniform,

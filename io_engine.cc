@@ -18,7 +18,7 @@ int io_engine_t::contribute_open_flags() {
     else if(config->operation == op_write)
         return O_WRONLY;
     else
-        check("Invalid operation", 1);
+        return O_WRONLY;
     
 }
 
@@ -82,8 +82,14 @@ int io_engine_t::perform_op(char *buf, long long ops, rnd_gen_t rnd_gen) {
         perform_read_op(offset, buf);
     else if(config->operation == op_write)
         perform_write_op(offset, buf);
+    else if(config->operation == op_trim)
+        perform_trim_op(offset);
     
     return 1;
+}
+
+void io_engine_t::perform_trim_op(off64_t offset) {
+    check("Trim isn't implemented for this IO interface type (try the stateful IO interface)", 1);
 }
 
 void io_engine_t::copy_io_state(io_engine_t *io_engine) {

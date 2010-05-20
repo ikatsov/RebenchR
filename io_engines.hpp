@@ -10,6 +10,7 @@ class io_engine_stateful_t : public io_engine_t {
 public:
     virtual void perform_read_op(off64_t offset, char *buf);
     virtual void perform_write_op(off64_t offset, char *buf);
+    virtual void perform_trim_op(off64_t offset);
 };
 
 // Stateless engine
