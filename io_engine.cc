@@ -17,8 +17,10 @@ int io_engine_t::contribute_open_flags() {
         return O_RDONLY;
     else if(config->operation == op_write)
         return O_WRONLY;
+    else if(config->operation == op_trim)
+        return O_RDWR;
     else
-        return O_WRONLY;
+        check("Invalid operation", 1);
     
 }
 

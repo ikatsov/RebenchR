@@ -57,10 +57,12 @@ void print_stats(ticks_t start_time, ticks_t end_time, long long ops, workload_c
                ((double)ops * config->block_size / 1024 / 1024) / total_secs,
                min_ops_per_sec, max_ops_per_sec, (int)agg_std_dev);
     } else {
-        printf("Ops/sec: mean - %d (%.2f MB/sec), min - %llu, max - %llu, stddev - %d\n",
-               (int)((float)ops / total_secs),
+        float mean = (float)ops / total_secs;
+        printf("Ops/sec: mean - %d (%.2f MB/sec), min - %llu, max - %llu, stddev - %d (%.2f%%)\n",
+               (int)mean,
                ((double)ops * config->block_size / 1024 / 1024) / total_secs,
-               min_ops_per_sec, max_ops_per_sec, (int)agg_std_dev);
+               min_ops_per_sec, max_ops_per_sec, (int)agg_std_dev,
+               agg_std_dev / mean * 100.0f);
         printf("Total: %lld ops in %.2f secs\n", ops, ticks_to_secs(end_time - start_time));
     }
 }
