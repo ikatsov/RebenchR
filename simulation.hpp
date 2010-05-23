@@ -9,15 +9,23 @@
 // Describes each workload simulation
 class io_engine_t;
 struct workload_simulation_t {
+    workload_simulation_t()
+        : min_ops_per_sec(1000000), max_ops_per_sec(0), last_ops_so_far(0)
+        {}
+    
     std::vector<io_engine_t*> engines;
     std::vector<pthread_t> threads;
     workload_config_t config;
     int is_done;
     ticks_t start_time, end_time;
     long long ops;
-    long long min_ops_per_sec, max_ops_per_sec;
-    std_dev_t std_dev;
+
     void *mmap;
+
+    // stats info
+    long long min_ops_per_sec, max_ops_per_sec;
+    unsigned long long last_ops_so_far;
+    std_dev_t std_dev;
 };
 typedef std::vector<workload_simulation_t*> wsp_vector;
 

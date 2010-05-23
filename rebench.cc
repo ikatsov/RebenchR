@@ -60,6 +60,7 @@ void drop_workload_caches(wsp_vector *workloads) {
 void start_simulations(wsp_vector *workloads) {
     // Start the simulations
     int workload = 1;
+    
     for(wsp_vector::iterator it = workloads->begin(); it != workloads->end(); ++it) {
         workload_simulation_t *ws = *it;
 
@@ -108,13 +109,9 @@ void stop_simulations(wsp_vector *workloads) {
     // Stop the simulations
     bool all_done = false;
     int total_slept = 0;
-    ticks_t last_ticks_now = get_ticks();
+    ticks_t last_ticks_now = get_ticks(), ticks_now = 0;
+    workload_config_t *config = &((*(workloads->begin()))->config);
 
-    // stats info
-    int n_stats_reports = 0;
-    long long min_ops_per_sec = 1000000, max_ops_per_sec = 0;
-    unsigned long long last_ops_so_far = 0;
-    
     while(!all_done) {
         all_done = true;
         for(wsp_vector::iterator it = workloads->begin(); it != workloads->end(); ++it) {
@@ -140,7 +137,8 @@ void stop_simulations(wsp_vector *workloads) {
                         all_done = false;
                     }
                 } else {
-                    // The simulation thread will handle exiting
+                    // We're interactive, the simulation thread will
+                    // handle exiting
                     while(!ws->is_done) {
                         usleep(5000);
                     }
@@ -148,26 +146,22 @@ void stop_simulations(wsp_vector *workloads) {
             }
 
             // Compute stats
-            ticks_t ticks_now = get_ticks();
+            ticks_now = get_ticks();
             unsigned long long ms_passed = ticks_to_ms(ticks_now - last_ticks_now);
             if(ms_passed >= ws->config.sample_step) {
                 // Compute current stats
                 if(ops_so_far == -1) {
                     ops_so_far = compute_total_ops(ws);
                 }
-                unsigned long long ops_this_time = ops_so_far - last_ops_so_far;
+                unsigned long long ops_this_time = ops_so_far - ws->last_ops_so_far;
                 int ops_per_sec = (float)ops_this_time / ((float)ms_passed / 1000.0f);
-                last_ops_so_far = ops_so_far;
+                ws->last_ops_so_far = ops_so_far;
 
-                if(ops_per_sec < min_ops_per_sec)
-                    min_ops_per_sec = ops_per_sec;
-                if(ops_per_sec > max_ops_per_sec)
-                    max_ops_per_sec = ops_per_sec;
+                if(ops_per_sec < ws->min_ops_per_sec)
+                    ws->min_ops_per_sec = ops_per_sec;
+                if(ops_per_sec > ws->max_ops_per_sec)
+                    ws->max_ops_per_sec = ops_per_sec;
                 add_to_std_dev(&(ws->std_dev), ops_per_sec);
-                    
-                // Reset the counter
-                n_stats_reports++;
-                last_ticks_now = ticks_now;
             }
             
             // If the workload is done, wait for all the threads and grab the time
@@ -177,11 +171,16 @@ void stop_simulations(wsp_vector *workloads) {
                           pthread_join(ws->threads[i], NULL) != 0);
                 }
                 ws->end_time = get_ticks();
-                ws->min_ops_per_sec = min_ops_per_sec;
-                ws->max_ops_per_sec = max_ops_per_sec;
             }
         }
         
+                    
+        // Reset the ticks
+        unsigned long long ms_passed = ticks_to_ms(ticks_now - last_ticks_now);
+        if(ms_passed >= config->sample_step) {
+            last_ticks_now = ticks_now;
+        }
+                
         if(!all_done) {
             usleep(5000);
             total_slept++;
