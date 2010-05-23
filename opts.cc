@@ -61,7 +61,12 @@ void usage(const char *name) {
     
     printf("\t-c, --threads\n\t\tNumbers of threads used to run the benchmark.\n");
     printf("\t-b, --block_size\n\t\tSize of blocks in bytes to use for IO operations.\n");
+    printf("\t\tBlock size can also be specified in units other than bytes by appending\n");
+    printf("\t\t'k', 'm', 'g', or '%%'.\n");
+
     printf("\t-s, --stride\n\t\tSize of stride in bytes (only applies to sequential workloads).\n");
+    printf("\t\tStride can also be specified in units other than bytes by appending\n");
+    printf("\t\t'k', 'm', 'g', or '%%'.\n");
     
     printf("\t-w, --workload\n\t\tDescription of a workload to perform.\n");
     printf("\t\tValid options are 'rnd' for a random load, and 'seq' for a sequential load.\n");
@@ -111,9 +116,13 @@ void usage(const char *name) {
 
     printf("\t-j, --offset\n\t\tThe offset in the file to start operations from.\n");
     printf("\t\tBy default, this value is set to zero.\n");
+    printf("\t\tOffset can also be specified in units other than bytes by appending 'k', 'm', 'g',\n");
+    printf("\t\tor '%%'.\n");
 
     printf("\t-e, --length\n\t\tThe length from the offset in the file to perform operations on.\n");
     printf("\t\tBy default, this value is set to the length of the file or the device.\n");
+    printf("\t\tLength can also be specified in units other than bytes by appending 'k', 'm', 'g',\n");
+    printf("\t\tor '%%'.\n");
 
     printf("\t-g, --sample-step\n\t\tThe timestep between IOPS report samples (in milliseconds).\n");
     printf("\t\tDefaults to 1000ms.\n");
@@ -169,7 +178,14 @@ void parse_length(char *length, workload_config_t *config) {
 
 void parse_offset(char *length, workload_config_t *config) {
     config->offset = parse_size(length, config->device_length);
-    config->offset = config->offset / 512 * 512;
+}
+
+void parse_block_size(char *length, workload_config_t *config) {
+    config->block_size = parse_size(length, config->device_length);
+}
+
+void parse_stride(char *length, workload_config_t *config) {
+    config->stride = parse_size(length, config->device_length);
 }
 
 void parse_options(int argc, char *argv[], workload_config_t *config) {
@@ -179,6 +195,8 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
     optind = 1; // reinit getopt
     char *length_arg = NULL;
     char *offset_arg = NULL;
+    char *block_size_arg = NULL;
+    char *stride_arg = NULL;
     while(1)
     {
         struct option long_options[] =
@@ -220,7 +238,7 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
         case 0:
             break;
         case 'b':
-            config->block_size = atoi(optarg);
+            block_size_arg = optarg;
             break;
             
         case 'd':
@@ -240,7 +258,7 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
             break;
      
         case 's':
-            config->stride = atoi(optarg);
+            stride_arg = optarg;
             break;
      
         case 'p':
@@ -414,6 +432,12 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
     }
     if(offset_arg) {
         parse_offset(offset_arg, config);
+    }
+    if(block_size_arg) {
+        parse_block_size(block_size_arg, config);
+    }
+    if(stride_arg) {
+        parse_stride(stride_arg, config);
     }
 
     config->device_length = get_device_length(config->device);
