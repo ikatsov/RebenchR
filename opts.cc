@@ -427,6 +427,8 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
     check("Eventfd is only relevant for naio workloads",
           config->use_eventfd == 1 && config->io_type != iot_naio);
 
+    config->device_length = get_device_length(config->device);
+
     if(length_arg) {
         parse_length(length_arg, config);
     }
@@ -439,8 +441,6 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
     if(stride_arg) {
         parse_stride(stride_arg, config);
     }
-
-    config->device_length = get_device_length(config->device);
     
     // Set the length
     if(config->length == 0) {
