@@ -518,8 +518,12 @@ void print_status(off64_t length, workload_config_t *config) {
     printf("operation: ");
     if(config->operation == op_write)
         printf("write, ");
-    else
+    else if(config->operation == op_read)
         printf("read, ");
+    else if(config->operation == op_trim)
+        printf("trim, ");
+    else
+        check("Unknown operation", 1);
     
     if(config->operation == op_write) {
         printf("buffering: ");
