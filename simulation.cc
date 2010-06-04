@@ -63,6 +63,12 @@ void print_stats(ticks_t start_time, ticks_t end_time, long long ops, workload_c
                ((double)ops * config->block_size / 1024 / 1024) / total_secs,
                min_ops_per_sec, max_ops_per_sec, (int)agg_std_dev,
                agg_std_dev / mean * 100.0f);
+	float latency = 1000000.0f / mean;
+	if(latency > 1000.0f) {
+		printf("Mean latency: %.2f ms/op\n", 1000.0f / mean);
+	} else {
+		printf("Mean latency: %.2f us/op\n", 1000000.0f / mean);
+	}
         printf("Total: %lld ops in %.2f secs\n", ops, ticks_to_secs(end_time - start_time));
     }
 }
