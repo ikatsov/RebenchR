@@ -46,6 +46,7 @@ struct workload_config_t {
     duration_unit_t duration_unit;
     int stride;
     char device[DEVICE_NAME_LENGTH];
+    char output_file[DEVICE_NAME_LENGTH];
     off64_t offset;
     off64_t length;
     off64_t device_length;

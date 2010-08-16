@@ -10,7 +10,7 @@
 class io_engine_t;
 struct workload_simulation_t {
     workload_simulation_t()
-        : min_ops_per_sec(1000000), max_ops_per_sec(0), last_ops_so_far(0)
+        : min_ops_per_sec(1000000), max_ops_per_sec(0), last_ops_so_far(0), output_fd(-1)
         {}
     
     std::vector<io_engine_t*> engines;
@@ -26,12 +26,13 @@ struct workload_simulation_t {
     long long min_ops_per_sec, max_ops_per_sec;
     unsigned long long last_ops_so_far;
     std_dev_t std_dev;
+    int output_fd;
 };
 typedef std::vector<workload_simulation_t*> wsp_vector;
 
 class io_engine_t;
-void setup_io(workload_config_t *config, io_engine_t *io_engine);
-void cleanup_io(workload_config_t *config, io_engine_t *io_engine);
+void setup_io(workload_config_t *config, workload_simulation_t *ws, io_engine_t *io_engine);
+void cleanup_io(workload_config_t *config, workload_simulation_t *ws, io_engine_t *io_engine);
 
 void* simulation_worker(void *arg);
 

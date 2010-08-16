@@ -87,12 +87,12 @@ void start_simulations(wsp_vector *workloads) {
             io_engine->is_done = &ws->is_done;
             if(!ws->config.local_fd) {
                 if(first_engine == NULL) {
-                    setup_io(&ws->config, io_engine);
+                    setup_io(&ws->config, ws, io_engine);
                 } else {
                     io_engine->copy_io_state(first_engine);
                 }
             } else {
-                setup_io(&ws->config, io_engine);
+                setup_io(&ws->config, ws, io_engine);
             }
             pthread_t thread;
             check("Error creating thread",
@@ -162,6 +162,13 @@ void stop_simulations(wsp_vector *workloads) {
                 if(ops_per_sec > ws->max_ops_per_sec)
                     ws->max_ops_per_sec = ops_per_sec;
                 add_to_std_dev(&(ws->std_dev), ops_per_sec);
+
+                if(ws->output_fd != -1) {
+                    char databuf[255];
+                    int outcount = snprintf(databuf, 255, "%d\n", ops_per_sec);
+                    int res = write(ws->output_fd, databuf, outcount);
+                    check("Could not record output data", res != outcount);
+                }
             }
             
             // If the workload is done, wait for all the threads and grab the time
@@ -195,12 +202,12 @@ void compute_stats(wsp_vector *workloads) {
         for(int i = 0; i < ws->config.threads; i++) {
             // Clean up local fds
             if(ws->config.local_fd)
-                cleanup_io(&ws->config, ws->engines[i]);
+                cleanup_io(&ws->config, ws, ws->engines[i]);
         }
         ws->ops = compute_total_ops(ws);
         
         if(!ws->config.local_fd)
-            cleanup_io(&ws->config, ws->engines[0]);
+            cleanup_io(&ws->config, ws, ws->engines[0]);
 
         // print results
         if(it != workloads->begin())

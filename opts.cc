@@ -7,6 +7,8 @@
 #include "opts.hpp"
 #include "utils.hpp"
 
+const int OUTPUT_FLAG = 1024;
+
 int HARDWARE_BLOCK_SIZE = 512;
 
 void print_size(off64_t size);
@@ -20,6 +22,7 @@ void init_workload_config(workload_config_t *config) {
     config->duration_unit = dut_time;
     config->stride = HARDWARE_BLOCK_SIZE;
     config->device[0] = NULL;
+    config->output_file[0] = NULL;
     config->offset = 0;
     config->length = 0;
     config->direct_io = 1;
@@ -128,6 +131,8 @@ void usage(const char *name) {
     printf("\t\tDefaults to 1000ms.\n");
 
     printf("\t--drop-caches\n\t\tAsks the kernel to drop the cache before running the benchmark.\n");
+
+    printf("\t--output\n\t\tA file name to write detailed data output to at each sample step.\n");
     
     exit(0);
 }
@@ -222,6 +227,7 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
                 {"local-fd", no_argument, &config->local_fd, 1},
                 {"silent", no_argument, &config->silent, 1},
                 {"drop-caches", no_argument, &config->drop_caches, 1},
+                {"output", required_argument, 0, OUTPUT_FLAG},
                 {"eventfd", no_argument, &config->use_eventfd, 1},
                 {0, 0, 0, 0}
             };
@@ -350,6 +356,10 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
 
         case 'g':
             config->sample_step = atoi(optarg);
+            break;
+
+        case OUTPUT_FLAG:
+            strncpy(config->output_file, optarg, DEVICE_NAME_LENGTH);
             break;
 
         case '?':

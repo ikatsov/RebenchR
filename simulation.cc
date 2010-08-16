@@ -11,7 +11,7 @@
 #include "simulation.hpp"
 #include "io_engine.hpp"
 
-void setup_io(workload_config_t *config, io_engine_t *io_engine) {
+void setup_io(workload_config_t *config, workload_simulation_t *ws, io_engine_t *io_engine) {
     int res, fd;
     int flags = 0;
     
@@ -32,12 +32,23 @@ void setup_io(workload_config_t *config, io_engine_t *io_engine) {
     io_engine->fd = fd;
 
     io_engine->post_open_setup();
+
+    // Setup output file if necessary
+    if(config->output_file[0] != 0) {
+        ws->output_fd = open(config->output_file, O_CREAT | O_TRUNC | O_APPEND | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+        check("Error opening the data file", ws->output_fd == -1);
+    }
 }
 
-void cleanup_io(workload_config_t *config, io_engine_t *io_engine) {
+void cleanup_io(workload_config_t *config, workload_simulation_t *ws, io_engine_t *io_engine) {
     io_engine->pre_close_teardown();
     int res = close(io_engine->fd);
     check("Could not close the file", res == -1);
+    
+    if(ws->output_fd != -1) {
+        res = close(ws->output_fd);
+        check("Could not close the output file", res == -1);
+    }
 }
 
 void* simulation_worker(void *arg) {
