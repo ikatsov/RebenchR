@@ -115,9 +115,9 @@ void usage(const char *name) {
     printf("\t-l, --local-fd\n\t\tUse a thread local file descriptor (by default file descriptors\n"\
            "\t\tare shared across threads).\n");
     printf("\t-n, --silent\n\t\tNon-interactive mode. Won't ask for write confirmation, and will\n"\
-           "\t\tprint machine readable output.\n");
-
-    printf("\t-j, --offset\n\t\tThe offset in the file to start operations from.\n");
+           "\t\tprint machine readable output in the following format:\n"\
+           "\t\t[ops per second] [MB/sec] [min ops per second] [max ops per second] [standard deviation]\n");
+    printf("\t-j, --offset\n\t\tThe offset in the file to start iperations from.\n");
     printf("\t\tBy default, this value is set to zero.\n");
     printf("\t\tOffset can also be specified in units other than bytes by appending 'k', 'm', 'g',\n");
     printf("\t\tor '%%'.\n");
