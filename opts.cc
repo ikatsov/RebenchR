@@ -103,8 +103,8 @@ void usage(const char *name) {
     printf("\t-a, --append\n\t\tOpen the file in append-only mode (off by default).\n"\
            "\t\tThis option is only applicable for sequential writes.\n");
     printf("\t-u, --dist\n\t\tThe distribution used for random workloads (uniform by default).\n"\
-           "\t\tValid options are 'uniform', 'normal', and 'pow' (for power law).\n"
-           "\t\tThis option is only applicable for random workloads.\n");
+           "\t\tValid options are 'uniform', 'normal', 'pow' (for power law) and const\n"
+           "\t\t(for accessing one block). This option is only applicable for random workloads.\n");
     printf("\t-i, --sigma\n\t\tControls the random distribution.\n"\
            "\t\tFor normal distribution, it is the percent of the data one standard deviation away\n"\
            "\t\tfrom the mean (5 by default). If sigma = 5, roughly 68%% of the time only 10%%\n"\
@@ -117,7 +117,7 @@ void usage(const char *name) {
     printf("\t-n, --silent\n\t\tNon-interactive mode. Won't ask for write confirmation, and will\n"\
            "\t\tprint machine readable output in the following format:\n"\
            "\t\t[ops per second] [MB/sec] [min ops per second] [max ops per second] [standard deviation]\n");
-    printf("\t-j, --offset\n\t\tThe offset in the file to start iperations from.\n");
+    printf("\t-j, --offset\n\t\tThe offset in the file to start operations from.\n");
     printf("\t\tBy default, this value is set to zero.\n");
     printf("\t\tOffset can also be specified in units other than bytes by appending 'k', 'm', 'g',\n");
     printf("\t\tor '%%'.\n");
@@ -346,6 +346,8 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
                 config->dist = rdt_normal;
             else if(strcmp(optarg, "pow") == 0)
                 config->dist = rdt_power;
+            else if(strcmp(optarg, "const") == 0)
+                config->dist = rdt_const;
             else
                 check("Invalid distribution", 1);
             break;
@@ -558,7 +560,9 @@ void print_status(off64_t length, workload_config_t *config) {
 
     if(config->workload == wl_rnd) {
         printf("dist: ");
-        if(config->dist == rdt_uniform)
+        if(config->dist == rdt_const)
+            printf("const, ");
+        else if(config->dist == rdt_uniform)
             printf("uniform, ");
         else if(config->dist == rdt_normal)
             printf("normal, ");

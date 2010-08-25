@@ -27,6 +27,7 @@ enum operation_t {
     op_trim
 };
 enum rnd_dist_t {
+    rdt_const,
     rdt_uniform,
     rdt_normal,
     rdt_power

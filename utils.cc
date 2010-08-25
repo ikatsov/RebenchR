@@ -50,6 +50,9 @@ off64_t get_random(rnd_gen_t rnd_gen, rnd_dist_t dist, off64_t length, int sigma
     double tmp;
     switch(dist)
     {
+    case rdt_const:
+        return 0;
+        break;
     case rdt_uniform:
         return gsl_ran_flat((gsl_rng*)rnd_gen, 0, length);
         break;
