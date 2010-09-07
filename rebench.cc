@@ -70,8 +70,9 @@ void start_simulations(wsp_vector *workloads) {
                 if(workload == workloads->size())
                     printf("\n");
             }
-            else
+            else {
                 printf("Benchmarking...\n\n");
+            }
         }
         workload++;
 

@@ -15,6 +15,12 @@ ticks_t get_ticks() {
     return secs_to_ticks(tv.tv_sec) + tv.tv_nsec;
 }
 
+long get_ticks_res() {
+    timespec tv;
+    clock_getres(CLOCK_MONOTONIC, &tv);
+    return secs_to_ticks(tv.tv_sec) + tv.tv_nsec;
+}
+
 float ticks_to_secs(ticks_t ticks) {
     return ticks / 1000000000.0f;
 }
