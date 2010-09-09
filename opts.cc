@@ -128,7 +128,7 @@ void usage(const char *name) {
     printf("\t\tor '%%'.\n");
 
     printf("\t-g, --sample-step\n\t\tThe timestep between IOPS report samples (in milliseconds).\n");
-    printf("\t\tDefaults to 1000ms.\n");
+    printf("\t\tDefaults to 1000ms. If set to zero, reports latency of every operation.\n");
 
     printf("\t--drop-caches\n\t\tAsks the kernel to drop the cache before running the benchmark.\n");
 
@@ -631,7 +631,9 @@ void print_status(off64_t length, workload_config_t *config) {
     else
         printf("off");
 
-    printf(", sample step: %dms", config->sample_step);
+    printf(", sample step: %d", config->sample_step);
+    if(config->sample_step != 0)
+        printf("ms");
     
     printf("]\n");
 }

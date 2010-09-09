@@ -8,6 +8,9 @@
 // Stateful engine
 class io_engine_stateful_t : public io_engine_t {
 public:
+    io_engine_stateful_t(std::vector<ticks_t> *_latencies, pthread_mutex_t *_latency_mutex)
+        : io_engine_t(_latencies, _latency_mutex)
+        {}
     virtual void perform_read_op(off64_t offset, char *buf);
     virtual void perform_write_op(off64_t offset, char *buf);
     virtual void perform_trim_op(off64_t offset);
@@ -16,6 +19,9 @@ public:
 // Stateless engine
 class io_engine_stateless_t : public io_engine_t {
 public:
+    io_engine_stateless_t(std::vector<ticks_t> *_latencies, pthread_mutex_t *_latency_mutex)
+        : io_engine_t(_latencies, _latency_mutex)
+        {}
     virtual void perform_read_op(off64_t offset, char *buf);
     virtual void perform_write_op(off64_t offset, char *buf);
 };
@@ -23,6 +29,9 @@ public:
 // PAIO engine
 class io_engine_paio_t : public io_engine_t {
 public:
+    io_engine_paio_t(std::vector<ticks_t> *_latencies, pthread_mutex_t *_latency_mutex)
+        : io_engine_t(_latencies, _latency_mutex)
+        {}
     virtual void post_open_setup();
     virtual void perform_read_op(off64_t offset, char *buf);
     virtual void perform_write_op(off64_t offset, char *buf);
@@ -41,6 +50,9 @@ private:
 // PAIO engine
 class io_engine_naio_t : public io_engine_t {
 public:
+    io_engine_naio_t(std::vector<ticks_t> *_latencies, pthread_mutex_t *_latency_mutex)
+        : io_engine_t(_latencies, _latency_mutex)
+        {}
     virtual void perform_read_op(off64_t offset, char *buf);
     virtual void perform_write_op(off64_t offset, char *buf);
     virtual int perform_op(char *buf, long long ops, rnd_gen_t rnd_gen);
@@ -60,6 +72,9 @@ private:
 // mmap engine
 class io_engine_mmap_t : public io_engine_t {
 public:
+    io_engine_mmap_t(std::vector<ticks_t> *_latencies, pthread_mutex_t *_latency_mutex)
+        : io_engine_t(_latencies, _latency_mutex)
+        {}
     virtual int contribute_open_flags();
     virtual void post_open_setup();
     virtual void pre_close_teardown();

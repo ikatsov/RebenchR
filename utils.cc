@@ -29,6 +29,10 @@ float ticks_to_ms(ticks_t ticks) {
     return ticks / 1000000.0f;
 }
 
+float ticks_to_us(ticks_t ticks) {
+    return ticks / 1000.0f;
+}
+
 ticks_t secs_to_ticks(float secs) {
     return (unsigned long long)secs * 1000000000L;
 }

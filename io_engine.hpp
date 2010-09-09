@@ -9,8 +9,9 @@
 
 class io_engine_t {
 public:
-    io_engine_t()
-        : config(NULL), fd(0), is_done(NULL), ops(0)
+    io_engine_t(std::vector<ticks_t> *_latencies, pthread_mutex_t *_latency_mutex)
+        : config(NULL), fd(0), is_done(NULL), ops(0),
+          latencies(_latencies), latency_mutex(_latency_mutex)
         {}
     
     virtual int contribute_open_flags();
@@ -26,15 +27,21 @@ public:
     virtual void perform_trim_op(off64_t offset);
 
     virtual void copy_io_state(io_engine_t *io_engine);
+
+protected:
+    void push_latency(ticks_t latency);
     
 public:
     int fd;
     workload_config_t *config;
     int *is_done;
     long ops;
+    
+    std::vector<ticks_t> *latencies;
+    pthread_mutex_t *latency_mutex;
 };
 
-io_engine_t* make_engine(io_type_t engine_type);
+io_engine_t* make_engine(io_type_t engine_type, std::vector<ticks_t> *_latencies, pthread_mutex_t *_latency_mutex);
 
 #endif // __IO_ENGINE_HPP__
 

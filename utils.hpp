@@ -8,8 +8,10 @@ typedef unsigned long long ticks_t;
 
 long get_ticks_res(); // Returns ticks resolution in nanoseconds
 ticks_t get_ticks();
+ticks_t get_ticks();
 float ticks_to_secs(ticks_t ticks);
 float ticks_to_ms(ticks_t ticks);
+float ticks_to_us(ticks_t ticks);
 ticks_t secs_to_ticks(float secs);
 
 void check(const char *str, int error);

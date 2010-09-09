@@ -82,8 +82,9 @@ void start_simulations(wsp_vector *workloads) {
         ws->start_time = get_ticks();
         init_std_dev(&(ws->std_dev));
         io_engine_t *first_engine = NULL;
+        pthread_mutex_init(&ws->latency_mutex, NULL);
         for(int i = 0; i < ws->config.threads; i++) {
-            io_engine_t *io_engine = make_engine(ws->config.io_type);
+            io_engine_t *io_engine = make_engine(ws->config.io_type, &ws->latencies, &ws->latency_mutex);
             io_engine->config = &ws->config;
             io_engine->is_done = &ws->is_done;
             if(!ws->config.local_fd) {
@@ -147,28 +148,45 @@ void stop_simulations(wsp_vector *workloads) {
             }
 
             // Compute stats
-            ticks_now = get_ticks();
-            unsigned long long ms_passed = ticks_to_ms(ticks_now - last_ticks_now);
-            if(ms_passed >= ws->config.sample_step) {
-                // Compute current stats
-                if(ops_so_far == -1) {
-                    ops_so_far = compute_total_ops(ws);
+            if(ws->config.sample_step == 0) {
+                // If sample step is zero, we're dealing with
+                // latencies for any given op instead of ops per
+                // second.
+                // TODO: implement
+                for(int i = 0; i < ws->latencies.size(); i++) {
+                    unsigned long long latency = ws->latencies[i];
+                    ws->sum_latency += latency;
+                    add_to_std_dev(&(ws->std_dev), latency);
+                    if(latency < ws->min_latency)
+                        ws->min_latency = latency;
+                    if(latency > ws->max_latency)
+                        ws->max_latency = latency;
                 }
-                unsigned long long ops_this_time = ops_so_far - ws->last_ops_so_far;
-                int ops_per_sec = (float)ops_this_time / ((float)ms_passed / 1000.0f);
-                ws->last_ops_so_far = ops_so_far;
+                ws->latencies.clear();
+            } else {
+                ticks_now = get_ticks();
+                unsigned long long ms_passed = ticks_to_ms(ticks_now - last_ticks_now);
+                if(ms_passed >= ws->config.sample_step) {
+                    // Compute current stats
+                    if(ops_so_far == -1) {
+                        ops_so_far = compute_total_ops(ws);
+                    }
+                    unsigned long long ops_this_time = ops_so_far - ws->last_ops_so_far;
+                    int ops_per_sec = (float)ops_this_time / ((float)ms_passed / 1000.0f);
+                    ws->last_ops_so_far = ops_so_far;
 
-                if(ops_per_sec < ws->min_ops_per_sec)
-                    ws->min_ops_per_sec = ops_per_sec;
-                if(ops_per_sec > ws->max_ops_per_sec)
-                    ws->max_ops_per_sec = ops_per_sec;
-                add_to_std_dev(&(ws->std_dev), ops_per_sec);
+                    if(ops_per_sec < ws->min_ops_per_sec)
+                        ws->min_ops_per_sec = ops_per_sec;
+                    if(ops_per_sec > ws->max_ops_per_sec)
+                        ws->max_ops_per_sec = ops_per_sec;
+                    add_to_std_dev(&(ws->std_dev), ops_per_sec);
 
-                if(ws->output_fd != -1) {
-                    char databuf[255];
-                    int outcount = snprintf(databuf, 255, "%d\n", ops_per_sec);
-                    int res = write(ws->output_fd, databuf, outcount);
-                    check("Could not record output data", res != outcount);
+                    if(ws->output_fd != -1) {
+                        char databuf[255];
+                        int outcount = snprintf(databuf, 255, "%d\n", ops_per_sec);
+                        int res = write(ws->output_fd, databuf, outcount);
+                        check("Could not record output data", res != outcount);
+                    }
                 }
             }
             
@@ -217,11 +235,13 @@ void compute_stats(wsp_vector *workloads) {
         print_stats(ws->start_time, ws->end_time, ws->ops,
                     &ws->config,
                     ws->min_ops_per_sec, ws->max_ops_per_sec,
-                    sqrt(get_variance(&(ws->std_dev))));
+                    sqrt(get_variance(&(ws->std_dev))),
+                    ws->sum_latency, ws->min_latency, ws->max_latency);
 
         // clean up
         for(int i = 0; i < ws->engines.size(); i++)
             delete ws->engines[i];
+        pthread_mutex_destroy(&ws->latency_mutex);
         delete ws;
     }
 }

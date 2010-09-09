@@ -58,28 +58,69 @@ void* simulation_worker(void *arg) {
 }
 
 void print_stats(ticks_t start_time, ticks_t end_time, long long ops, workload_config_t *config,
-                 long long min_ops_per_sec, long long max_ops_per_sec, float agg_std_dev) {
+                 long long min_ops_per_sec, long long max_ops_per_sec, float agg_std_dev,
+                 unsigned long long sum_latency, unsigned long long min_latency,
+                 unsigned long long max_latency) {
     if(config->duration_unit == dut_interactive)
         return;
     float total_secs = ticks_to_secs(end_time - start_time);
-    if(config->silent) {
-        printf("%d %.2f %llu %llu %d\n",
-               (int)((float)ops / total_secs),
-               ((double)ops * config->block_size / 1024 / 1024) / total_secs,
-               min_ops_per_sec, max_ops_per_sec, (int)agg_std_dev);
+    float _sum_latency;
+    float _min_latency;
+    float _max_latency;
+    float _agg_std_dev;
+    bool latency_use_ms = ticks_to_us(sum_latency / ops) > 1000.0f;
+    if(latency_use_ms) {
+        _sum_latency = ticks_to_ms(sum_latency);
+        _min_latency = ticks_to_ms(min_latency);
+        _max_latency = ticks_to_ms(max_latency);
+        _agg_std_dev = ticks_to_ms(agg_std_dev);
     } else {
-        float mean = (float)ops / total_secs;
-        printf("Ops/sec: mean - %d (%.2f MB/sec), min - %llu, max - %llu, stddev - %d (%.2f%%)\n",
-               (int)mean,
-               ((double)ops * config->block_size / 1024 / 1024) / total_secs,
-               min_ops_per_sec, max_ops_per_sec, (int)agg_std_dev,
-               agg_std_dev / mean * 100.0f);
-	float latency = 1000000.0f / mean;
-	if(latency > 1000.0f) {
+        _sum_latency = ticks_to_us(sum_latency);
+        _min_latency = ticks_to_us(min_latency);
+        _max_latency = ticks_to_us(max_latency);
+        _agg_std_dev = ticks_to_us(agg_std_dev);
+    }
+
+    if(config->silent) {
+        if(config->sample_step == 0) {
+            printf("%.2f %.2f %.2f %.2f %.2f\n",
+                   ticks_to_us(sum_latency) / ops,                                     // mean latency (in microseconds)
+                   ((double)ops * config->block_size / 1024 / 1024) / total_secs,      // MB/sec
+                   ticks_to_us(min_latency), ticks_to_us(max_latency),                 // min latency, max latency
+                   ticks_to_us(agg_std_dev));                                          // deviation
+        } else {
+            printf("%d %.2f %llu %llu %d\n",
+                   (int)((float)ops / total_secs),                                     // mean ops per sec
+                   ((double)ops * config->block_size / 1024 / 1024) / total_secs,      // MB/sec
+                   min_ops_per_sec, max_ops_per_sec, (int)agg_std_dev);                // min ops/sec, max ops/sec, deviation
+        }
+    } else {
+        if(config->sample_step == 0) {
+            float mean = _sum_latency / ops;
+            printf("Latency: mean - %.2f", mean);
+            if(latency_use_ms)
+                printf("ms");
+            else
+                printf("us");
+            printf(" (%.2f MB/sec), min - %.2f, max - %.2f, stddev - %.2f (%.2f%%)\n",
+                   ((double)ops * config->block_size / 1024 / 1024) / total_secs,
+                   _min_latency, _max_latency, _agg_std_dev,
+                   _agg_std_dev / mean * 100.0f);
+            printf("Mean ops/sec: %d\n", (int)((float)ops / total_secs));
+        } else {
+            float mean = (float)ops / total_secs;
+            printf("Ops/sec: mean - %d (%.2f MB/sec), min - %llu, max - %llu, stddev - %d (%.2f%%)\n",
+                   (int)mean,
+                   ((double)ops * config->block_size / 1024 / 1024) / total_secs,
+                   min_ops_per_sec, max_ops_per_sec, (int)agg_std_dev,
+                   agg_std_dev / mean * 100.0f);
+            float latency = 1000000.0f / mean;
+            if(latency > 1000.0f) {
 		printf("Mean latency: %.2f ms/op\n", 1000.0f / mean);
-	} else {
+            } else {
 		printf("Mean latency: %.2f us/op\n", 1000000.0f / mean);
-	}
+            }
+        }
         printf("Total: %lld ops in %.2f secs\n", ops, ticks_to_secs(end_time - start_time));
     }
 }
