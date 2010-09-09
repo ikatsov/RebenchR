@@ -152,7 +152,8 @@ void stop_simulations(wsp_vector *workloads) {
                 // If sample step is zero, we're dealing with
                 // latencies for any given op instead of ops per
                 // second.
-                // TODO: implement
+                char buf[1024];
+                int buf_offset = 0;
                 for(int i = 0; i < ws->latencies.size(); i++) {
                     unsigned long long latency = ws->latencies[i];
                     ws->sum_latency += latency;
@@ -161,7 +162,22 @@ void stop_simulations(wsp_vector *workloads) {
                         ws->min_latency = latency;
                     if(latency > ws->max_latency)
                         ws->max_latency = latency;
+                    int _off = snprintf(buf + buf_offset, sizeof(buf) - buf_offset,
+                                        "%.2f\n", ticks_to_us(latency));
+                    if(_off >= sizeof(buf) - buf_offset) {
+                        // Couldn't write everything, flush and write
+                        // again.
+                        int res = write(ws->output_fd, buf, buf_offset);
+                        check("Could not record output data", res != buf_offset);
+                        buf_offset = 0;
+                        _off = snprintf(buf + buf_offset, sizeof(buf) - buf_offset,
+                                        "%.2f\n", ticks_to_us(latency));
+                    }
+                    buf_offset += _off;
                 }
+                // Write whatever we missed
+                int res = write(ws->output_fd, buf, buf_offset);
+                check("Could not record output data", res != buf_offset);
                 ws->latencies.clear();
             } else {
                 ticks_now = get_ticks();
