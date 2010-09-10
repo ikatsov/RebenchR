@@ -374,6 +374,12 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
         }
     }
 
+    if(config->sample_step == 0
+       && (config->io_type == iot_paio || config->io_type == iot_naio)) {
+        check("Latency stats collection isn't implemented for paio and naio backends", 1);
+    }
+
+
     if(config->workload == wl_rnd && config->direction == opd_backward)
         check("Direction can only be used for a sequential workload", 1);
 
