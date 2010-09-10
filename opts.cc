@@ -38,6 +38,7 @@ void init_workload_config(workload_config_t *config) {
     config->dist = rdt_uniform;
     config->sigma = -1;
     config->sample_step = 1000;
+    config->pause_interval = 0;
     config->drop_caches = 0;
     config->use_eventfd = 0;
 }
@@ -130,6 +131,9 @@ void usage(const char *name) {
     printf("\t-g, --sample-step\n\t\tThe timestep between IOPS report samples (in milliseconds).\n");
     printf("\t\tDefaults to 1000ms. If set to zero, reports latency of every operation.\n");
 
+    printf("\t-z, --pause\n\t\tThe timestep to wait between a completion of an operation and execution\n");
+    printf("\t\tof the next operation in microseconds. Defaults to zero.\n");
+
     printf("\t--drop-caches\n\t\tAsks the kernel to drop the cache before running the benchmark.\n");
 
     printf("\t--output\n\t\tA file name to write detailed data output to at each sample step.\n");
@@ -220,6 +224,7 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
                 {"dist", required_argument, 0, 'u'},
                 {"sigma", required_argument, 0, 'i'},
                 {"sample-step", required_argument, 0, 'g'},
+                {"pause", required_argument, 0, 'z'},
                 {"paged", no_argument, &config->direct_io, 0},
                 {"buffered", no_argument, &config->buffered, 1},
                 {"do-atime", no_argument, &config->do_atime, 1},
@@ -233,7 +238,7 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
             };
 
         int option_index = 0;
-        int c = getopt_long(argc, argv, "b:d:c:w:t:q:r:s:o:u:i:e:j:g:mpfaln", long_options, &option_index);
+        int c = getopt_long(argc, argv, "b:d:c:w:t:q:r:s:o:u:i:e:j:g:z:mpfaln", long_options, &option_index);
      
         /* Detect the end of the options. */
         if (c == -1)
@@ -360,6 +365,10 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
             config->sample_step = atoi(optarg);
             break;
 
+        case 'z':
+            config->pause_interval = atoi(optarg);
+            break;
+
         case OUTPUT_FLAG:
             strncpy(config->output_file, optarg, DEVICE_NAME_LENGTH);
             break;
@@ -379,6 +388,10 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
         check("Latency stats collection isn't implemented for paio and naio backends", 1);
     }
 
+    if(config->pause_interval != 0
+       && (config->io_type == iot_paio || config->io_type == iot_naio)) {
+        check("Pauses aren't implemented for paio and naio backends", 1);
+    }
 
     if(config->workload == wl_rnd && config->direction == opd_backward)
         check("Direction can only be used for a sequential workload", 1);
@@ -640,6 +653,10 @@ void print_status(off64_t length, workload_config_t *config) {
     printf(", sample step: %d", config->sample_step);
     if(config->sample_step != 0)
         printf("ms");
+    
+    printf(", pause interval: %ld", config->pause_interval);
+    if(config->pause_interval != 0)
+        printf("us");
     
     printf("]\n");
 }

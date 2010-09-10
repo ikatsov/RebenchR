@@ -68,6 +68,10 @@ void io_engine_t::run_benchmark() {
         // Read from the buffer to make sure there is no optimization
         // shenanigans
 	sum += buf[0];
+
+        // Pause if necessary
+        if(config->pause_interval > 0)
+            usleep(config->pause_interval);
     }
 
 done:
