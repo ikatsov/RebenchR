@@ -1,4 +1,0 @@
-#!/bin/bash
-opcontrol --stop
-opcontrol --deinit
-opcontrol --reset
