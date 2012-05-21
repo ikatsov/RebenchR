@@ -114,7 +114,9 @@ void io_engine_paio_t::perform_read_op(off64_t offset, char *buf, aiocb64 *reque
     request->aio_fildes = fd;
     request->aio_offset = offset;
     request->aio_nbytes = config->block_size;
-    request->aio_buf = buf;
+    request->aio_buf = buf;    
+    set_timestamp(request);   
+
     res = aio_read64(request);
     check("aio_read failed", res != 0);
 }
@@ -127,8 +129,16 @@ void io_engine_paio_t::perform_write_op(off64_t offset, char *buf, aiocb64 *requ
     request->aio_offset = offset;
     request->aio_nbytes = config->block_size;
     request->aio_buf = buf;
+    set_timestamp(request);
+
     res = aio_write64(request);
     check("aio_write failed", res != 0);
+}
+
+void io_engine_paio_t::set_timestamp(aiocb64 *request) {
+    ticks_t* timestamp = (ticks_t*)malloc(sizeof(ticks_t) * 1);
+    timestamp[0] = get_ticks();
+    request->aio_sigevent.sigev_value.sival_ptr = timestamp; 
 }
 
 int io_engine_paio_t::perform_op(char *buf, aiocb64 *request, long long ops, rnd_gen_t rnd_gen) {
@@ -198,7 +208,11 @@ void io_engine_paio_t::run_benchmark() {
                 // Check return value
                 res = aio_return64(aio_reqs[i]);
                 check("Error reading from device", res < -1);
-                
+
+                ticks_t* timestamp = (ticks_t*)(aio_reqs[i]->aio_sigevent.sigev_value.sival_ptr);
+		push_latency(get_ticks() - timestamp[0]);
+	        free(timestamp);                              
+
                 // Submit another request
                 long long _ops = __sync_fetch_and_add(&ops, 1);
                 if(!perform_op(buf + config->block_size * i, aio_reqs[i], _ops, rnd_gen)) {
@@ -308,6 +322,10 @@ void io_engine_naio_t::run_benchmark() {
             iocb *req = (iocb*)events[i].obj;
             // Check return value
             check("Error reading from device", events[i].res < 0);
+	
+            ticks_t* timestamp = (ticks_t*)(events[i].data);
+            push_latency(get_ticks() - timestamp[0]);
+	    free(timestamp);
             
             // Submit another request
             long long _ops = __sync_fetch_and_add(&ops, 1);
@@ -328,7 +346,8 @@ done:
 
 void io_engine_naio_t::perform_read_op(off64_t offset, char *buf, iocb *request) {
     bzero(request, sizeof(iocb));
-    io_prep_pread(request, fd, buf, config->block_size, offset);
+    io_prep_pread(request, fd, buf, config->block_size, offset);    
+    set_timestamp(request);
     if(config->use_eventfd)
         io_set_eventfd(request, notification_fd);
     iocb* _requests[1];
@@ -340,6 +359,7 @@ void io_engine_naio_t::perform_read_op(off64_t offset, char *buf, iocb *request)
 void io_engine_naio_t::perform_write_op(off64_t offset, char *buf, iocb *request) {
     bzero(request, sizeof(iocb));
     io_prep_pwrite(request, fd, buf, config->block_size, offset);
+    set_timestamp(request);
     if(config->use_eventfd)
         io_set_eventfd(request, notification_fd);
     iocb* _requests[1];
@@ -353,7 +373,7 @@ int io_engine_naio_t::perform_op(char *buf, iocb *request, long long ops, rnd_ge
     off64_t offset = prepare_offset(ops, rnd_gen, config);
     if(::is_done(offset, config)) {
         return 0;
-    }
+    }       
 
     if(config->duration_unit == dut_interactive) {
         char in;
@@ -372,6 +392,12 @@ int io_engine_naio_t::perform_op(char *buf, iocb *request, long long ops, rnd_ge
         perform_write_op(offset, buf, request);
     
     return 1;
+}
+
+void io_engine_naio_t::set_timestamp(iocb *request) {
+    ticks_t* timestamp = (ticks_t*)malloc(sizeof(ticks_t) * 1);
+    timestamp[0] = get_ticks();
+    request->data = timestamp;
 }
 
 /**

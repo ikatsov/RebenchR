@@ -44,6 +44,7 @@ public:
     int perform_op(char *buf, aiocb64 *request, long long ops, rnd_gen_t rnd_gen);
 
 private:
+    void set_timestamp(aiocb64 *request);
     aiocb64 *requests;
 };
 
@@ -64,6 +65,7 @@ public:
     int perform_op(char *buf, iocb *request, long long ops, rnd_gen_t rnd_gen);
 
 private:
+    void set_timestamp(iocb *request);
     io_context_t ctx_id;
     iocb *requests;
     int notification_fd;

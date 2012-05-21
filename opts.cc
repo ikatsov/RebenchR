@@ -383,11 +383,6 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
         }
     }
 
-    if(config->sample_step == 0
-       && (config->io_type == iot_paio || config->io_type == iot_naio)) {
-        check("Latency stats collection isn't implemented for paio and naio backends", 1);
-    }
-
     if(config->pause_interval != 0
        && (config->io_type == iot_paio || config->io_type == iot_naio)) {
         check("Pauses aren't implemented for paio and naio backends", 1);
