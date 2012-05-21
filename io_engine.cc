@@ -57,8 +57,11 @@ void io_engine_t::run_benchmark() {
 
         // Time calcs (if necessary)
         if(config->sample_step == 0) {
-            time_end = get_ticks();
-            push_latency(time_end - time_start);
+            time_end = get_ticks();		
+            latency_t latency;
+            latency.time = time_start;
+            latency.duration = time_end - time_start;
+            push_latency(latency);
         }
 
         if(!res) {
@@ -115,7 +118,7 @@ void io_engine_t::copy_io_state(io_engine_t *io_engine) {
     fd = io_engine->fd;
 }
 
-void io_engine_t::push_latency(ticks_t latency) {
+void io_engine_t::push_latency(latency_t latency) {
     int res = 0;
     res = pthread_mutex_lock(latency_mutex);
     check("Could not lock latency mutex", res != 0);
@@ -126,7 +129,7 @@ void io_engine_t::push_latency(ticks_t latency) {
 
 #include "io_engines.hpp"
 
-io_engine_t* make_engine(io_type_t engine_type, std::vector<ticks_t> *_latencies, pthread_mutex_t *_latency_mutex) {
+io_engine_t* make_engine(io_type_t engine_type, std::vector<latency_t> *_latencies, pthread_mutex_t *_latency_mutex) {
     switch(engine_type) {
     case iot_stateful:
         return new io_engine_stateful_t(_latencies, _latency_mutex);

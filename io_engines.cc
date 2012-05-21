@@ -210,7 +210,11 @@ void io_engine_paio_t::run_benchmark() {
                 check("Error reading from device", res < -1);
 
                 ticks_t* timestamp = (ticks_t*)(aio_reqs[i]->aio_sigevent.sigev_value.sival_ptr);
-		push_latency(get_ticks() - timestamp[0]);
+		latency_t latency;
+		ticks_t end_time = get_ticks();
+                latency.time = timestamp[0];
+                latency.duration = end_time - timestamp[0];
+		push_latency(latency);
 	        free(timestamp);                              
 
                 // Submit another request
@@ -324,7 +328,11 @@ void io_engine_naio_t::run_benchmark() {
             check("Error reading from device", events[i].res < 0);
 	
             ticks_t* timestamp = (ticks_t*)(events[i].data);
-            push_latency(get_ticks() - timestamp[0]);
+            latency_t latency;
+	    ticks_t end_time = get_ticks();
+            latency.time = timestamp[0];
+            latency.duration = end_time - timestamp[0];
+	    push_latency(latency);
 	    free(timestamp);
             
             // Submit another request
