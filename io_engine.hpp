@@ -4,14 +4,15 @@
 
 #include "simulation.hpp"
 #include "utils.hpp"
+#include "stream_stat.hpp"
 
 #define DEFAULT_MIN_OP_TIME_IN_MS 1000000.0f
 
 class io_engine_t {
 public:
-    io_engine_t(std::vector<ticks_t> *_latencies, pthread_mutex_t *_latency_mutex)
+    io_engine_t(std::vector<ticks_t> *_latencies, stream_stat_t *_stream_stat, pthread_mutex_t *_latency_mutex)
         : config(NULL), fd(0), is_done(NULL), ops(0),
-          latencies(_latencies), latency_mutex(_latency_mutex)
+          latencies(_latencies), stream_stat(_stream_stat), latency_mutex(_latency_mutex)
         {}
     
     virtual int contribute_open_flags();
@@ -38,10 +39,11 @@ public:
     long ops;
     
     std::vector<ticks_t> *latencies;
+    stream_stat_t *stream_stat;
     pthread_mutex_t *latency_mutex;
 };
 
-io_engine_t* make_engine(io_type_t engine_type, std::vector<ticks_t> *_latencies, pthread_mutex_t *_latency_mutex);
+io_engine_t* make_engine(io_type_t engine_type, std::vector<ticks_t> *_latencies, stream_stat_t *_stream_stat, pthread_mutex_t *_latency_mutex);
 
 #endif // __IO_ENGINE_HPP__
 

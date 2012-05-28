@@ -40,7 +40,7 @@ void init_workload_config(workload_config_t *config) {
     config->sample_step = 1000;
     config->pause_interval = 0;
     config->drop_caches = 0;
-    config->use_eventfd = 0;
+    config->use_eventfd = 0;    
 }
 
 void usage(const char *name) {
@@ -132,7 +132,7 @@ void usage(const char *name) {
     printf("\t\tDefaults to 1000ms. If set to zero, reports latency of every operation.\n");
 
     printf("\t-z, --pause\n\t\tThe timestep to wait between a completion of an operation and execution\n");
-    printf("\t\tof the next operation in microseconds. Defaults to zero.\n");
+    printf("\t\tof the next operation in microseconds. Defaults to zero.\n");    
 
     printf("\t--drop-caches\n\t\tAsks the kernel to drop the cache before running the benchmark.\n");
 
@@ -233,7 +233,7 @@ void parse_options(int argc, char *argv[], workload_config_t *config) {
                 {"silent", no_argument, &config->silent, 1},
                 {"drop-caches", no_argument, &config->drop_caches, 1},
                 {"output", required_argument, 0, OUTPUT_FLAG},
-                {"eventfd", no_argument, &config->use_eventfd, 1},
+                {"eventfd", no_argument, &config->use_eventfd, 1},		
                 {0, 0, 0, 0}
             };
 

@@ -11,6 +11,7 @@
 #include "utils.hpp"
 #include "io_engine.hpp"
 #include "workload.hpp"
+#include "stream_stat.hpp"
 
 int io_engine_t::contribute_open_flags() {
     if(config->operation == op_read)
@@ -46,20 +47,16 @@ void io_engine_t::run_benchmark() {
     while(!(*is_done)) {
         long long _ops = __sync_fetch_and_add(&ops, 1);
         
-        // Time calcs (if necessary)
+        // Time calcs
         ticks_t time_start, time_end;
-        if(config->sample_step == 0) {
-            time_start = get_ticks();
-        }
+        time_start = get_ticks();
 
         // Perform the op
         res = perform_op(buf, _ops, rnd_gen);
 
-        // Time calcs (if necessary)
-        if(config->sample_step == 0) {
-            time_end = get_ticks();
-            push_latency(time_end - time_start);
-        }
+        // Time calcs
+        time_end = get_ticks();
+        push_latency(time_end - time_start);
 
         if(!res) {
             *is_done = 1;
@@ -119,29 +116,32 @@ void io_engine_t::push_latency(ticks_t latency) {
     int res = 0;
     res = pthread_mutex_lock(latency_mutex);
     check("Could not lock latency mutex", res != 0);
-    latencies->push_back(latency);
+    if(config->sample_step == 0) {	
+        latencies->push_back(latency);	
+    }
+    stream_stat->add(latency);
     res = pthread_mutex_unlock(latency_mutex);
     check("Could not unlock latency mutex", res != 0);
 }
 
 #include "io_engines.hpp"
 
-io_engine_t* make_engine(io_type_t engine_type, std::vector<ticks_t> *_latencies, pthread_mutex_t *_latency_mutex) {
+io_engine_t* make_engine(io_type_t engine_type, std::vector<ticks_t> *_latencies, stream_stat_t *_stream_stat, pthread_mutex_t *_latency_mutex) {
     switch(engine_type) {
     case iot_stateful:
-        return new io_engine_stateful_t(_latencies, _latency_mutex);
+        return new io_engine_stateful_t(_latencies, _stream_stat, _latency_mutex);
         break;
     case iot_stateless:
-        return new io_engine_stateless_t(_latencies, _latency_mutex);
+        return new io_engine_stateless_t(_latencies, _stream_stat, _latency_mutex);
         break;
     case iot_paio:
-        return new io_engine_paio_t(_latencies, _latency_mutex);
+        return new io_engine_paio_t(_latencies, _stream_stat, _latency_mutex);
         break;
     case iot_naio:
-        return new io_engine_naio_t(_latencies, _latency_mutex);
+        return new io_engine_naio_t(_latencies, _stream_stat, _latency_mutex);
         break;
     case iot_mmap:
-        return new io_engine_mmap_t(_latencies, _latency_mutex);
+        return new io_engine_mmap_t(_latencies, _stream_stat, _latency_mutex);
         break;
     default:
         check("Unknown engine type", 1);

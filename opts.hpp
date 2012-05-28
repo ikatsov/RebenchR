@@ -67,7 +67,7 @@ struct workload_config_t {
     int drop_caches;
     int use_eventfd;
     int sample_step;
-    long pause_interval; // in microseconds
+    long pause_interval; // in microseconds bool enable_latency_tracing;    
 };
 
 // Operations

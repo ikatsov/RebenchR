@@ -5,6 +5,7 @@
 #include <vector>
 #include <pthread.h>
 #include "utils.hpp"
+#include "stream_stat.hpp"
 
 // Describes each workload simulation
 class io_engine_t;
@@ -21,6 +22,7 @@ struct workload_simulation_t {
     ticks_t start_time, end_time;
     long long ops;
     std::vector<ticks_t> latencies;
+    stream_stat_t *stream_stat;
     pthread_mutex_t latency_mutex;
 
     void *mmap;
@@ -48,6 +50,7 @@ void print_stats(ticks_t start_time, ticks_t end_time, long long ops, workload_c
                  long long min_ops_per_sec, long long max_ops_per_sec, float agg_std_dev,
                  unsigned long long sum_latency, unsigned long long min_latency,
                  unsigned long long max_latency);
+void print_latency_stats(workload_config_t *config, stat_data_t stat_data);
 long long compute_total_ops(workload_simulation_t *ws);
 
 #endif // __SIMULATION_HPP__

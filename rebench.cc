@@ -79,12 +79,13 @@ void start_simulations(wsp_vector *workloads) {
         ws->is_done = 0;
         ws->ops = 0;
         ws->mmap = NULL;
-        ws->start_time = get_ticks();
+        ws->start_time = get_ticks();	
+	ws->stream_stat = new stream_stat_t(12, 3);
         init_std_dev(&(ws->std_dev));
         io_engine_t *first_engine = NULL;
         pthread_mutex_init(&ws->latency_mutex, NULL);
         for(int i = 0; i < ws->config.threads; i++) {
-            io_engine_t *io_engine = make_engine(ws->config.io_type, &ws->latencies, &ws->latency_mutex);
+            io_engine_t *io_engine = make_engine(ws->config.io_type, &ws->latencies, ws->stream_stat, &ws->latency_mutex);
             io_engine->config = &ws->config;
             io_engine->is_done = &ws->is_done;
             if(!ws->config.local_fd) {
@@ -112,7 +113,7 @@ void stop_simulations(wsp_vector *workloads) {
     bool all_done = false;
     int total_slept = 0;
     ticks_t last_ticks_now = get_ticks(), ticks_now = 0;
-    workload_config_t *config = &((*(workloads->begin()))->config);
+    workload_config_t *config = &((*(workloads->begin()))->config);       
 
     while(!all_done) {
         all_done = true;
@@ -202,8 +203,15 @@ void stop_simulations(wsp_vector *workloads) {
                     add_to_std_dev(&(ws->std_dev), ops_per_sec);
 
                     if(ws->output_fd != -1) {
-                        char databuf[255];
-                        int outcount = snprintf(databuf, 255, "%d\n", ops_per_sec);
+			int buffer_size = 1024;
+                        char databuf[buffer_size];
+			ws->stream_stat->snapshot();			
+			stat_data_t stat_data = ws->stream_stat->get_percentiles();			
+                        int outcount = snprintf(databuf, buffer_size, "%lld\t%d\t%.1f\t%lld\t%lld", ticks_now, ops_per_sec, stat_data.mean, stat_data.min_value, stat_data.max_value);
+			for(std::map<double, ticks_t>::iterator it = stat_data.percentiles.begin(); it != stat_data.percentiles.end(); ++it) {
+				outcount += snprintf(databuf+outcount, buffer_size-outcount, "\t%lld", it->second);	
+			}
+			outcount += snprintf(databuf+outcount, buffer_size-outcount, "\n");
                         int res = write(ws->output_fd, databuf, outcount);
                         check("Could not record output data", res != outcount);
                     }
@@ -256,11 +264,14 @@ void compute_stats(wsp_vector *workloads) {
                     &ws->config,
                     ws->min_ops_per_sec, ws->max_ops_per_sec,
                     sqrt(get_variance(&(ws->std_dev))),
-                    ws->sum_latency, ws->min_latency, ws->max_latency);
+                    ws->sum_latency, ws->min_latency, ws->max_latency);	
+	print_latency_stats(&ws->config, ws->stream_stat->get_percentiles());
 
         // clean up
-        for(int i = 0; i < ws->engines.size(); i++)
-            delete ws->engines[i];
+        for(int i = 0; i < ws->engines.size(); i++) {
+            delete ws->engines[i];	  
+	}	
+	delete ws->stream_stat;
         pthread_mutex_destroy(&ws->latency_mutex);
         delete ws;
     }

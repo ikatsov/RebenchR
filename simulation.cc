@@ -125,6 +125,19 @@ void print_stats(ticks_t start_time, ticks_t end_time, long long ops, workload_c
     }
 }
 
+void print_latency_stats(workload_config_t *config, stat_data_t stat_data) {
+	if(config->duration_unit == dut_interactive)
+        	return;
+
+	printf("Mean latency: %.3f us\n", stat_data.mean / 1000.0);
+	printf("Min latency: %.3f us\n", ticks_to_us(stat_data.min_value) );
+	printf("Max latency: %.3f us\n", ticks_to_us(stat_data.max_value) );
+
+	for(std::map<double, ticks_t>::iterator it = stat_data.percentiles.begin(); it != stat_data.percentiles.end(); ++it) {
+		printf("Latency %.2fth percentile: %.1f us\n", it->first, ticks_to_us(it->second) );
+	}
+}
+
 long long compute_total_ops(workload_simulation_t *ws) {
     long long ops = 0;
     for(int i = 0; i < ws->config.threads; i++) {
