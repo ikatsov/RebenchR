@@ -246,6 +246,7 @@ int io_engine_naio_t::perform_op(char *buf, long long ops, rnd_gen_t rnd_gen) {
 
 void io_engine_naio_t::run_benchmark() {
     // Setup context
+    memset(&ctx_id, 0, sizeof(io_context_t));
     int res = io_setup(config->queue_depth, &ctx_id);
     check("Could not setup aio context", res != 0);
 
