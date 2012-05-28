@@ -152,27 +152,27 @@ void stop_simulations(wsp_vector *workloads) {
                 // If sample step is zero, we're dealing with
                 // latencies for any given op instead of ops per
                 // second.
-                char buf[4*1024];
+                char buf[1024];
                 int buf_offset = 0;
                 for(int i = 0; i < ws->latencies.size(); i++) {
-                    latency_t latency = ws->latencies[i];
-                    ws->sum_latency += latency.duration;
-                    add_to_std_dev(&(ws->std_dev), latency.duration);
-                    if(latency.duration < ws->min_latency)
-                        ws->min_latency = latency.duration;
-                    if(latency.duration > ws->max_latency)
-                        ws->max_latency = latency.duration;
+                    unsigned long long latency = ws->latencies[i];
+                    ws->sum_latency += latency;
+                    add_to_std_dev(&(ws->std_dev), latency);
+                    if(latency < ws->min_latency)
+                        ws->min_latency = latency;
+                    if(latency > ws->max_latency)
+                        ws->max_latency = latency;
                     if(ws->output_fd != -1) {
                         int _off = snprintf(buf + buf_offset, sizeof(buf) - buf_offset,
-                                            "%.2f\t%.2f\n", ticks_to_us(latency.time), ticks_to_us(latency.duration));
-                        if(_off*2 >= sizeof(buf) - buf_offset) {
+                                            "%.2f\n", ticks_to_us(latency));
+                        if(_off >= sizeof(buf) - buf_offset) {
                             // Couldn't write everything, flush and write
                             // again.
                             int res = write(ws->output_fd, buf, buf_offset);
                             check("Could not record output data", res != buf_offset);
                             buf_offset = 0;
                             _off = snprintf(buf + buf_offset, sizeof(buf) - buf_offset,
-                                            "%.2f\t%.2f\n", ticks_to_us(latency.time), ticks_to_us(latency.duration));
+                                            "%.2f\n", ticks_to_us(latency));
                         }
                         buf_offset += _off;
                     }
@@ -181,7 +181,7 @@ void stop_simulations(wsp_vector *workloads) {
                     // Write whatever we missed
                     int res = write(ws->output_fd, buf, buf_offset);
                     check("Could not record output data", res != buf_offset);
-                }                
+                }
                 ws->latencies.clear();
             } else {
                 ticks_now = get_ticks();
@@ -192,7 +192,7 @@ void stop_simulations(wsp_vector *workloads) {
                         ops_so_far = compute_total_ops(ws);
                     }
                     unsigned long long ops_this_time = ops_so_far - ws->last_ops_so_far;
-                    int ops_per_sec = (double)ops_this_time / ((double)ms_passed / 1000.0f);
+                    int ops_per_sec = (float)ops_this_time / ((float)ms_passed / 1000.0f);
                     ws->last_ops_so_far = ops_so_far;
 
                     if(ops_per_sec < ws->min_ops_per_sec)

@@ -8,7 +8,7 @@
 // Stateful engine
 class io_engine_stateful_t : public io_engine_t {
 public:
-    io_engine_stateful_t(std::vector<latency_t> *_latencies, pthread_mutex_t *_latency_mutex)
+    io_engine_stateful_t(std::vector<ticks_t> *_latencies, pthread_mutex_t *_latency_mutex)
         : io_engine_t(_latencies, _latency_mutex)
         {}
     virtual void perform_read_op(off64_t offset, char *buf);
@@ -19,7 +19,7 @@ public:
 // Stateless engine
 class io_engine_stateless_t : public io_engine_t {
 public:
-    io_engine_stateless_t(std::vector<latency_t> *_latencies, pthread_mutex_t *_latency_mutex)
+    io_engine_stateless_t(std::vector<ticks_t> *_latencies, pthread_mutex_t *_latency_mutex)
         : io_engine_t(_latencies, _latency_mutex)
         {}
     virtual void perform_read_op(off64_t offset, char *buf);
@@ -29,7 +29,7 @@ public:
 // PAIO engine
 class io_engine_paio_t : public io_engine_t {
 public:
-    io_engine_paio_t(std::vector<latency_t> *_latencies, pthread_mutex_t *_latency_mutex)
+    io_engine_paio_t(std::vector<ticks_t> *_latencies, pthread_mutex_t *_latency_mutex)
         : io_engine_t(_latencies, _latency_mutex)
         {}
     virtual void post_open_setup();
@@ -51,7 +51,7 @@ private:
 // PAIO engine
 class io_engine_naio_t : public io_engine_t {
 public:
-    io_engine_naio_t(std::vector<latency_t> *_latencies, pthread_mutex_t *_latency_mutex)
+    io_engine_naio_t(std::vector<ticks_t> *_latencies, pthread_mutex_t *_latency_mutex)
         : io_engine_t(_latencies, _latency_mutex)
         {}
     virtual void perform_read_op(off64_t offset, char *buf);
@@ -74,7 +74,7 @@ private:
 // mmap engine
 class io_engine_mmap_t : public io_engine_t {
 public:
-    io_engine_mmap_t(std::vector<latency_t> *_latencies, pthread_mutex_t *_latency_mutex)
+    io_engine_mmap_t(std::vector<ticks_t> *_latencies, pthread_mutex_t *_latency_mutex)
         : io_engine_t(_latencies, _latency_mutex)
         {}
     virtual int contribute_open_flags();

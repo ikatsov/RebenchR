@@ -9,7 +9,7 @@
 
 class io_engine_t {
 public:
-    io_engine_t(std::vector<latency_t> *_latencies, pthread_mutex_t *_latency_mutex)
+    io_engine_t(std::vector<ticks_t> *_latencies, pthread_mutex_t *_latency_mutex)
         : config(NULL), fd(0), is_done(NULL), ops(0),
           latencies(_latencies), latency_mutex(_latency_mutex)
         {}
@@ -29,7 +29,7 @@ public:
     virtual void copy_io_state(io_engine_t *io_engine);
 
 protected:
-    void push_latency(latency_t latency);
+    void push_latency(ticks_t latency);
     
 public:
     int fd;
@@ -37,11 +37,11 @@ public:
     int *is_done;
     long ops;
     
-    std::vector<latency_t> *latencies;
+    std::vector<ticks_t> *latencies;
     pthread_mutex_t *latency_mutex;
 };
 
-io_engine_t* make_engine(io_type_t engine_type, std::vector<latency_t> *_latencies, pthread_mutex_t *_latency_mutex);
+io_engine_t* make_engine(io_type_t engine_type, std::vector<ticks_t> *_latencies, pthread_mutex_t *_latency_mutex);
 
 #endif // __IO_ENGINE_HPP__
 

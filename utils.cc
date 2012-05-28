@@ -21,19 +21,19 @@ long get_ticks_res() {
     return secs_to_ticks(tv.tv_sec) + tv.tv_nsec;
 }
 
-double ticks_to_secs(ticks_t ticks) {
-    return ticks / 1000000000.0;
+float ticks_to_secs(ticks_t ticks) {
+    return ticks / 1000000000.0f;
 }
 
-double ticks_to_ms(ticks_t ticks) {
-    return ticks / 1000000.0;
+float ticks_to_ms(ticks_t ticks) {
+    return ticks / 1000000.0f;
 }
 
-double ticks_to_us(ticks_t ticks) {
-    return ticks / 1000.0;
+float ticks_to_us(ticks_t ticks) {
+    return ticks / 1000.0f;
 }
 
-ticks_t secs_to_ticks(double secs) {
+ticks_t secs_to_ticks(float secs) {
     return (unsigned long long)secs * 1000000000L;
 }
 
@@ -126,18 +126,18 @@ void init_std_dev(std_dev_t *std_dev) {
     std_dev->k = 0;
 }
 
-void add_to_std_dev(std_dev_t *std_dev, double x) {
+void add_to_std_dev(std_dev_t *std_dev, float x) {
     std_dev->k += 1;
     if(std_dev->k == 1) {
         std_dev->mk = x;
         std_dev->qk = 0;
     } else {
-        double temp = x - std_dev->mk;
+        float temp = x - std_dev->mk;
         std_dev->mk += (temp / std_dev->k);
         std_dev->qk += (((std_dev->k - 1) * temp * temp) / std_dev->k);
     }
 }
 
-double get_variance(std_dev_t *std_dev) {
+float get_variance(std_dev_t *std_dev) {
     return std_dev->qk / std_dev->k;
 }

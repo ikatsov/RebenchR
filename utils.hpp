@@ -9,15 +9,10 @@ typedef unsigned long long ticks_t;
 long get_ticks_res(); // Returns ticks resolution in nanoseconds
 ticks_t get_ticks();
 ticks_t get_ticks();
-double ticks_to_secs(ticks_t ticks);
-double ticks_to_ms(ticks_t ticks);
-double ticks_to_us(ticks_t ticks);
-ticks_t secs_to_ticks(double secs);
-
-struct latency_t {
-    ticks_t time;
-    ticks_t duration;
-};
+float ticks_to_secs(ticks_t ticks);
+float ticks_to_ms(ticks_t ticks);
+float ticks_to_us(ticks_t ticks);
+ticks_t secs_to_ticks(float secs);
 
 void check(const char *str, int error);
 
@@ -36,8 +31,8 @@ struct std_dev_t {
     unsigned long long k;
 };
 void init_std_dev(std_dev_t *std_dev);
-void add_to_std_dev(std_dev_t *std_dev, double x);
-double get_variance(std_dev_t *std_dev);
+void add_to_std_dev(std_dev_t *std_dev, float x);
+float get_variance(std_dev_t *std_dev);
 
 #endif // __UTILS_HPP__
 
