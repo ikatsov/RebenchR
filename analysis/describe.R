@@ -1,11 +1,22 @@
+# Usage : Rscript describe.R <trace1 filename> <trace1 name> <trace2 filename> <trace2 name> ...
+
+
 library(ggplot2)
 library(reshape2)
 
 #[ parse arguments
 args = commandArgs()
-input_file_name <- c("/home/ikatsov/AWORK/SANDBOX/HighlyScalable/SSD/RebenchR/trace.txt",
-"/home/ikatsov/AWORK/SANDBOX/HighlyScalable/SSD/RebenchR/trace_2.txt")
-names <- c("trace1", "trace2")
+input_file_name <- c()
+names <- c()
+i <- 0
+for(arg in args[6:length(args)]) {
+  if(i %% 2 == 0) {
+    input_file_name <- cbind(input_file_name, arg)
+  } else {
+    names <- cbind(names, arg)  
+  }
+  i <- i + 1
+}
 percentile_marks <- c(0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99)
 #]
 
