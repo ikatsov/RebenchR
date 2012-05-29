@@ -28,14 +28,20 @@ public:
 	~stream_stat_t();
 	
 	void add(ticks_t value);
-	stat_data_t get_percentiles();
-	stat_data_t get_percentiles(std::vector<double> &percentile_marks);
-	void snapshot();
+
+	stat_data_t get_global_stat();
+	stat_data_t get_global_stat(std::vector<double> &percentile_marks);
+
+	stat_data_t get_snapshot_stat();
+	stat_data_t get_snapshot_stat(std::vector<double> &percentile_marks);
+
+	void snapshot_and_reset();
 	
 private:
 
 	std::vector<double> default_percentile_marks;
 
+	stat_counters_t *global_stat;
 	stat_counters_t *active_stat;
 	stat_counters_t *snapshot_stat;
 	int buckets;
@@ -44,6 +50,9 @@ private:
 
 	void init_stat_counters(stat_counters_t *stat_counters);
 	void destroy_stat_counters(stat_counters_t *stat_counters);	
+
+	stat_data_t get_stat(stat_counters_t *stat_counters, std::vector<double> &percentile_marks);
+	void add(stat_counters_t *stat_counters, int b, int compressed_value, ticks_t value);
 };
 
 #endif // __STREAM_STAT_HPP__

@@ -16,7 +16,10 @@ stream_stat_t::stream_stat_t(int _buckets, int _bucket_size_exp) : buckets(_buck
 	default_percentile_marks.push_back(0.90);
 	default_percentile_marks.push_back(0.95);
 	default_percentile_marks.push_back(0.99);
+	default_percentile_marks.push_back(0.995);
 
+	global_stat = new stat_counters_t();
+	init_stat_counters(global_stat);
 	active_stat = new stat_counters_t();
 	init_stat_counters(active_stat);
 	snapshot_stat = new stat_counters_t();
@@ -24,6 +27,7 @@ stream_stat_t::stream_stat_t(int _buckets, int _bucket_size_exp) : buckets(_buck
 }
 
 stream_stat_t::~stream_stat_t() {	
+	destroy_stat_counters(global_stat);
 	destroy_stat_counters(active_stat);
 	destroy_stat_counters(snapshot_stat);
 }
@@ -49,16 +53,21 @@ void stream_stat_t::add(ticks_t value) {
 			compressed_value = floor( double(value) / pow(10, b) + 0.5);
 		}		
 
-		active_stat->histogram[b * bucket_size + compressed_value]++;
-
-		active_stat->count++;
-		active_stat->sum_values += value;
-		active_stat->max_value = std::max(active_stat->max_value, value);
-		active_stat->min_value = std::min(active_stat->min_value, value);
+		add(active_stat, b, compressed_value, value);
+		add(global_stat, b, compressed_value, value);
 	}
 }
 
-void stream_stat_t::snapshot() {
+inline void stream_stat_t::add(stat_counters_t *stat_counters, int b, int compressed_value, ticks_t value) {
+	stat_counters->histogram[b * bucket_size + compressed_value]++;
+
+	stat_counters->count++;
+	stat_counters->sum_values += value;
+	stat_counters->max_value = std::max(stat_counters->max_value, value);
+	stat_counters->min_value = std::min(stat_counters->min_value, value);
+}
+
+void stream_stat_t::snapshot_and_reset() {
 	destroy_stat_counters(snapshot_stat);	
 	snapshot_stat = active_stat;
 
@@ -68,17 +77,29 @@ void stream_stat_t::snapshot() {
 	active_stat = active_new_stat;
 }
 
-stat_data_t stream_stat_t::get_percentiles() {
-	return get_percentiles(default_percentile_marks);
+stat_data_t stream_stat_t::get_snapshot_stat() {
+	return get_snapshot_stat(default_percentile_marks);
 }
 
-stat_data_t stream_stat_t::get_percentiles(std::vector<double> &percentile_marks) {
+stat_data_t stream_stat_t::get_snapshot_stat(std::vector<double> &percentile_marks) {
+	return get_stat(snapshot_stat, percentile_marks);
+}
+
+stat_data_t stream_stat_t::get_global_stat() {
+	return get_global_stat(default_percentile_marks);
+}
+
+stat_data_t stream_stat_t::get_global_stat(std::vector<double> &percentile_marks) {
+	return get_stat(global_stat, percentile_marks);
+}
+
+stat_data_t stream_stat_t::get_stat(stat_counters_t *stat_counters, std::vector<double> &percentile_marks) {
 	int mark_pointer = 0;
 	
 	std::map<double, ticks_t> percentiles;
 	long total = 0;	
-	for(int i = 0; total < snapshot_stat->count && i < buckets*bucket_size && mark_pointer < percentile_marks.size(); i++) {	
-		if(total >= percentile_marks[mark_pointer] * snapshot_stat->count) {
+	for(int i = 0; total < stat_counters->count && i < buckets*bucket_size && mark_pointer < percentile_marks.size(); i++) {	
+		if(total >= percentile_marks[mark_pointer] * stat_counters->count) {
 			int b = i / bucket_size;
 			ticks_t latency = (i - b*bucket_size) * pow(10, b);
 			//printf(">>> total=%d b=%d i=%d latency=%d\n", total, b, i, latency);
@@ -86,19 +107,19 @@ stat_data_t stream_stat_t::get_percentiles(std::vector<double> &percentile_marks
 
 			mark_pointer++;
 		}
-		total += snapshot_stat->histogram[i];
+		total += stat_counters->histogram[i];
 	}
 	while(mark_pointer < percentile_marks.size()) {
-		percentiles.insert( std::pair<double, ticks_t>(percentile_marks[mark_pointer], snapshot_stat->max_value));
+		percentiles.insert( std::pair<double, ticks_t>(percentile_marks[mark_pointer], stat_counters->max_value));
 		mark_pointer++;
 	}
 
 	stat_data_t result;
 	result.percentiles = percentiles;
-	result.count = snapshot_stat->count;
-	result.mean = double(snapshot_stat->sum_values) / snapshot_stat->count;
-	result.min_value = snapshot_stat->min_value;
-	result.max_value = snapshot_stat->max_value;
+	result.count = stat_counters->count;
+	result.mean = double(stat_counters->sum_values) / stat_counters->count;
+	result.min_value = stat_counters->min_value;
+	result.max_value = stat_counters->max_value;
 	
-	return result;
+	return result;	
 }

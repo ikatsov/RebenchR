@@ -80,7 +80,7 @@ void start_simulations(wsp_vector *workloads) {
         ws->ops = 0;
         ws->mmap = NULL;
         ws->start_time = get_ticks();	
-	ws->stream_stat = new stream_stat_t(12, 3);
+	ws->stream_stat = new stream_stat_t(12, 3); // trace latencies up to 10^12 nanoseconds, estimation error 0.1% (10^-3)
         init_std_dev(&(ws->std_dev));
         io_engine_t *first_engine = NULL;
         pthread_mutex_init(&ws->latency_mutex, NULL);
@@ -205,8 +205,8 @@ void stop_simulations(wsp_vector *workloads) {
                     if(ws->output_fd != -1) {
 			int buffer_size = 1024;
                         char databuf[buffer_size];
-			ws->stream_stat->snapshot();			
-			stat_data_t stat_data = ws->stream_stat->get_percentiles();			
+			ws->stream_stat->snapshot_and_reset();			
+			stat_data_t stat_data = ws->stream_stat->get_snapshot_stat();			
                         int outcount = snprintf(databuf, buffer_size, "%lld\t%d\t%.1f\t%lld\t%lld", ticks_now, ops_per_sec, stat_data.mean, stat_data.min_value, stat_data.max_value);
 			for(std::map<double, ticks_t>::iterator it = stat_data.percentiles.begin(); it != stat_data.percentiles.end(); ++it) {
 				outcount += snprintf(databuf+outcount, buffer_size-outcount, "\t%lld", it->second);	
@@ -265,7 +265,7 @@ void compute_stats(wsp_vector *workloads) {
                     ws->min_ops_per_sec, ws->max_ops_per_sec,
                     sqrt(get_variance(&(ws->std_dev))),
                     ws->sum_latency, ws->min_latency, ws->max_latency);	
-	print_latency_stats(&ws->config, ws->stream_stat->get_percentiles());
+	print_latency_stats(&ws->config, ws->stream_stat->get_global_stat());
 
         // clean up
         for(int i = 0; i < ws->engines.size(); i++) {
