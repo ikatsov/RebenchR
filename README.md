@@ -103,4 +103,5 @@
 
 # R Script
 describe.R visualizes latency and throughput statistics. 
+
 	Rscript describe.R <trace1 filename> <trace1 name> <trace2 filename> <trace2 name> ...
