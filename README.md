@@ -100,3 +100,7 @@
                 Asks the kernel to drop the cache before running the benchmark.
 	--output
                 A file name to write detailed data output to at each sample step.
+
+# R Script
+describe.R visualizes latency and throughput statistics. 
+	Rscript describe.R <trace1 filename> <trace1 name> <trace2 filename> <trace2 name> ...
