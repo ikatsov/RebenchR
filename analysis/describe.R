@@ -17,7 +17,7 @@ for(arg in args[6:length(args)]) {
   }
   i <- i + 1
 }
-percentile_marks <- c(0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99)
+percentile_marks <- c(0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99, 0.995)
 #]
 
 i <- 1
@@ -89,5 +89,5 @@ png(filename="throughput_hist_time_plot.png", height=THROUGHPUT_HIST_TIME_PLOT_H
 throughput_dist_data <- melt( trace[,c(1,2,length(trace))], id=c("time", "source_file") )
 throughput_dist_data$qualifier <- paste(throughput_dist_data$source_file, throughput_dist_data$variable)
 ggplot(throughput_dist_data, aes(x=source_file, y=value, colour=source_file)) + stat_boxplot() + geom_jitter() +
-  ylab("Latency, usec") + xlab("Source File")
+  ylab("Throughput, IOPS") + xlab("Source File")
 dev.off()
