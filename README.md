@@ -108,4 +108,4 @@ describe.R visualizes latency and throughput statistics.
 
 # Plot Examples
 
-![Throughput Time Plot](https://github.com/ikatsov/RebenchR/blob/master/examples/throughput_time_plot.png)
+![Throughput Time Plot](https://github.com/ikatsov/RebenchR/raw/master/examples/throughput_time_plot.png)
