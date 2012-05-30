@@ -1,3 +1,7 @@
+RebenchR is an advanced disk IO benchmarking toolkit. This toolkit is able to simulate various workload patterns,
+support five different APIs with the full control of call parameters, collect detailed statistics and 
+visualize it using R.
+
 # Usage: 
 	./rebench [OPTIONS] DEVICE
 
