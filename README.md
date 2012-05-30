@@ -106,6 +106,10 @@ describe.R visualizes latency and throughput statistics.
 
 	Rscript describe.R <trace1 filename> <trace1 name> <trace2 filename> <trace2 name> ...
 
-# Plot Examples
+# Sample Plots
 
 ![Throughput Time Plot](https://github.com/ikatsov/RebenchR/raw/master/examples/throughput_time_plot.png)
+![Latency Time Plot](https://github.com/ikatsov/RebenchR/raw/master/examples/latency_dist_time_plot-2-threads.png)
+![Throughput Distribution Plot](https://github.com/ikatsov/RebenchR/raw/master/examples/throughput_hist_time_plot.png)
+![Latency Distribution Plot](https://github.com/ikatsov/RebenchR/raw/master/examples/latency_hist_time_plot.png)
+
